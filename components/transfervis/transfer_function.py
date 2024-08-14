@@ -12,7 +12,10 @@ class TransferFunction(CustomQVTKRenderWindowInteractor):
         self.color_tf = color_tf
         self.opacity_tf = opacity_tf
         self.data = data
+        
         self.volume_window = volume_window
+        self.color_tf = color_tf
+        self.opacity_tf = opacity_tf
 
         self.define_color()
         self.setup_view()

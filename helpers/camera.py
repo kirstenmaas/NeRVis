@@ -25,62 +25,31 @@ class CustomCamera(vtk.vtkCamera):
         self.Zoom(5.0)
         self.Dolly(0.2)
 
-    def update_angles(self, theta, phi):
+    def update_angles(self, azimuth, elevation):
         # make sure we only update if new values arrive
-        if self.azimuth != theta or self.elevation != phi:
+        if self.azimuth != azimuth or self.elevation != elevation:
             self.isosurface_window.set_camera_orientation(self.orientation)
             self.uncertainty_window.set_camera_orientation(self.orientation)
 
-            self.set_angles(theta, phi)
+            self.set_angles(azimuth, elevation)
             self.isosurface_window.renderer.ResetCamera()
+
+            self.OrthogonalizeViewUp()
             
             self.uncertainty_window.renderer.SetActiveCamera(self)
             self.uncertainty_window.renderer.ResetCamera()
-            self.set_new_view_up()
 
             self.isosurface_window.update_z_buffer()
             self.uncertainty_window.update_z_buffer()
 
-    def set_angles(self, theta, phi):
-        self.azimuth = theta
-        self.elevation = phi
-        
-        if int(np.abs(phi)) == 90:
-            # set angle to 85 to avoid parallel view plane
-            sign = phi/90
-            phi = sign * (np.abs(phi) - 5)
+    def set_angles(self, azimuth, elevation):
+        self.azimuth = azimuth
+        self.elevation = elevation
 
-        self.Azimuth(theta)
-        self.Elevation(phi)
-
-    def set_new_view_up(self):
-        view_up_vector = self.GetViewUp()
-        view_plane_normal = self.GetViewPlaneNormal()
-
-        angle, cos_similarity = self.similarity_vectors(view_up_vector, view_plane_normal)
-        if abs(cos_similarity) > 0.998:
-            self.SetViewUp(0.0, 0.0, 1.0)
-        else:
-            self.SetViewUp(0.0, 1.0, 0.0)
+        self.Azimuth(azimuth)
+        self.Elevation(elevation)
 
     def similarity_vectors(self, vector1, vector2):
-        """
-        Calculate the angle in degrees between two vectors.
-
-        Parameters:
-        -----------
-        vector1 : numpy.ndarray
-            The first vector.
-        vector2 : numpy.ndarray
-            The second vector.
-
-        Returns:
-        --------
-        angle : float
-            The angle in degrees between the two vectors.
-        cos_similarity : float
-            The cosine similarity between the two vectors.
-        """
         dot_product = np.dot(vector1, vector2)
         norm_vector1 = np.linalg.norm(vector1)
         norm_vector2 = np.linalg.norm(vector2)

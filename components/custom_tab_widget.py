@@ -30,29 +30,31 @@ class CustomTabWidget(QTabWidget):
         tf_tab = self.tf_tab
 
         self.tf_layout = QGridLayout(tf_tab)
-        self.tf_tf_frame = CustomFrame(name='tf_frame', style_sheet=frame_style_sheet, width=500, height=500)
+        self.tf_density_frame = CustomFrame(name='tf_density_frame', style_sheet=frame_style_sheet, width=500, height=500)
         
         self.setup_scalar_tf()
 
-        self.tf_distr_frame = CustomFrame(name='distr_frame', style_sheet=frame_style_sheet, width=1000, height=500)
+        self.tf_color_frame = CustomFrame(name='tf_color_frame', style_sheet=frame_style_sheet, width=500, height=500)
+        self.tf_distr_frame = CustomFrame(name='distr_frame', style_sheet=frame_style_sheet, width=500, height=500)
 
-        self.tf_layout.addWidget(self.tf_tf_frame, 0, 0)
+        self.tf_layout.addWidget(self.tf_density_frame, 0, 0)
         self.tf_layout.addWidget(self.tf_scalar_widget, 0, 1)
-        self.tf_layout.addWidget(self.tf_distr_frame, 1, 0, 1, 2)
+        self.tf_layout.addWidget(self.tf_color_frame, 1, 0)
+        self.tf_layout.addWidget(self.tf_distr_frame, 1, 1)
 
     def setup_heatmap_tab(self):
         heatmap_tab = self.heatmap_tab
 
         self.heatmap_layout = QGridLayout(heatmap_tab)
-        self.mean_heatmap_frame = CustomFrame(name='mean_heatmap_frame', style_sheet=frame_style_sheet, width=500, height=500)
-        self.std_heatmap_frame = CustomFrame(name='std_heatmap_frame', style_sheet=frame_style_sheet, width=500, height=500)
-        self.empty_frame_1 = CustomFrame(name='empty_frame_1', style_sheet=frame_style_sheet, width=500, height=500)
-        self.empty_frame_2 = CustomFrame(name='empty_frame_2', style_sheet=frame_style_sheet, width=500, height=500)
+        self.mean_heatmap_frame_top = CustomFrame(name='mean_heatmap_frame_top', style_sheet=frame_style_sheet, width=500, height=500)
+        self.mean_heatmap_frame_bottom = CustomFrame(name='mean_heatmap_frame_bottom', style_sheet=frame_style_sheet, width=500, height=500)
+        self.mean_color_heatmap_frame_top = CustomFrame(name='mean_color_heatmap_frame_top', style_sheet=frame_style_sheet, width=500, height=500)
+        self.mean_color_heatmap_frame_bottom = CustomFrame(name='mean_color_heatmap_frame_bottom', style_sheet=frame_style_sheet, width=500, height=500)
 
-        self.heatmap_layout.addWidget(self.mean_heatmap_frame, 0, 0)
-        self.heatmap_layout.addWidget(self.std_heatmap_frame, 0, 1)
-        self.heatmap_layout.addWidget(self.empty_frame_1, 1, 0)
-        self.heatmap_layout.addWidget(self.empty_frame_2, 1, 1)
+        self.heatmap_layout.addWidget(self.mean_heatmap_frame_top, 0, 0)
+        self.heatmap_layout.addWidget(self.mean_heatmap_frame_bottom, 0, 1)
+        self.heatmap_layout.addWidget(self.mean_color_heatmap_frame_top, 1, 0)
+        self.heatmap_layout.addWidget(self.mean_color_heatmap_frame_bottom, 1, 1)
     
     def setup_scalar_tf(self):
         self.tf_scalar_widget = QWidget()

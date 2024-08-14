@@ -1,6 +1,6 @@
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtk
-import pdb
+import numpy as np
 
 from .color_bar import ColorBar
 
@@ -58,10 +58,12 @@ class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
         camera.SetViewUp(orientation['view up'])
         camera.SetDistance(orientation['distance'])
         camera.SetClippingRange(orientation['clipping range'])
+        self.camera = camera
 
     def set_camera(self, camera):
         self.renderer.SetActiveCamera(camera)
         self.renderer.ResetCamera()
+        self.camera = camera
 
     def make_axes_actor(self):
         axes = vtk.vtkAxesActor()
@@ -121,11 +123,15 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         mapper.ScalarVisibilityOff()
         return mapper
     
-    def setup_actor(self, color='green'):
+    def setup_actor(self):
         actor = vtk.vtkActor()
     
         actor.SetMapper(self.mapper)
-        actor.GetProperty().SetColor(colors.GetColor3d(color))
+        #actor.GetProperty().SetColor(colors.GetColor3d('green'))
+
+        blue_color = np.array([8,104,172]) / 255
+        actor.GetProperty().SetColor(blue_color[0], blue_color[1], blue_color[2])
+
         actor.SetVisibility(True)
         return actor
     
@@ -142,9 +148,10 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         return renderer
 
 class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
-    def __init__(self, parent, density_reader, uncertainty_reader, z_buffer, camera):
-        super().__init__(parent, 'Uncertainty')
+    def __init__(self, parent, density_reader, uncertainty_reader, z_buffer, camera, name='Uncertainty'):
+        super().__init__(parent, name)
 
+        self.name = name
         self.density_reader = density_reader
         self.uncertainty_reader = uncertainty_reader
         self.z_buffer = z_buffer
@@ -181,14 +188,31 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         return volume
 
     def setup_uncertainty_tfs(self):
+        is_color_unc_tf = 'color' in self.name
+
         opacity_tf = vtk.vtkPiecewiseFunction()
         opacity_tf.AddPoint(0, 0)
-        opacity_tf.AddPoint(0.25, 1)
+        
+        if is_color_unc_tf:
+            opacity_tf.AddPoint(0.85, 1)
+        else:
+            opacity_tf.AddPoint(0.25, 1)
         self.uncertainty_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
         color_tf.AddRGBPoint(0.00, 1.0, 1.0, 1.0)
-        color_tf.AddRGBPoint(1.00, 1.0, 0.0, 0.0)
+        if is_color_unc_tf:
+            # yellow
+            # color_tf.AddRGBPoint(1.00, 1.0, 0.647, 0)
+
+            green = np.array([35,139,69]) / 255
+            color_tf.AddRGBPoint(1, green[0], green[1], green[2])
+        else:
+            # red
+            # color_tf.AddRGBPoint(1.00, 1.0, 0, 0)
+            purple = np.array([129,15,124]) / 255
+            color_tf.AddRGBPoint(1, purple[0], purple[1], purple[2])
+
         self.uncertainty_color_tf = color_tf
 
         return opacity_tf, color_tf
@@ -198,11 +222,13 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         opacity_tf.AddPoint(0, 0)
         opacity_tf.AddPoint(0.6, 1)
         opacity_tf.AddPoint(1, 0.99)
+
         self.density_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
         color_tf.AddRGBPoint(0.00, 0.0, 0.0, 0.0)
         color_tf.AddRGBPoint(1.00, 1.0, 1.0, 1.0)
+        
         self.density_color_tf = color_tf
 
         return opacity_tf, color_tf
@@ -222,7 +248,7 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         return volume_mapper
     
     def setup_colorbar(self):
-        self.colorbar = ColorBar(title="Uncertainty", values=self.uncertainty_color_tf, interactor=self)
+        self.colorbar = ColorBar(title=self.name, values=self.uncertainty_color_tf, interactor=self)
 
     def setup_renderer(self):
         renderer = vtk.vtkRenderer()

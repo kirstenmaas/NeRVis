@@ -32,9 +32,9 @@ class MainLayout(QHBoxLayout):
         self.synthesis_frame = CustomFrame(name='synthesis_frame', style_sheet=frame_style, width=500, height=500)
         self.uncertainty_vol_frame = CustomFrame(name='uncertainty_vol_frame', style_sheet=frame_style, width=500, height=500)
         self.isosurface_frame = CustomFrame(name='isosurface_frame', style_sheet=frame_style, width=500, height=500)
-        self.empty_renderer_frame = CustomFrame(name='empty_frame', style_sheet=frame_style, width=500, height=500)
+        self.uncertainty_color_frame = CustomFrame(name='uncertainty_color_frame', style_sheet=frame_style, width=500, height=500)
 
-        renderers_frames = [[self.synthesis_frame, self.uncertainty_vol_frame], [self.isosurface_frame, self.empty_renderer_frame]]
+        renderers_frames = [[self.synthesis_frame, self.uncertainty_vol_frame], [self.isosurface_frame, self.uncertainty_color_frame]]
         self.renderers_layout.addWidgets(renderers_frames)
     
     def vis_setup(self):

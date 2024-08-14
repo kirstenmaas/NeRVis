@@ -5,12 +5,13 @@ import numpy as np
 class Data():
     def __init__(self, config_args):
         self.data_name = config_args['dataset']
+        self.model_type = config_args['model_type']
         self.dataset_config = config_args['dataset_config']
         self.iterations = config_args['iterations']
         self.isosurface_filter_value = config_args['isosurface_filter_value']
         self.histogram_uncertainty_filter = config_args['histogram_uncertainty_filter']
 
-        self.data_path = f'datasets/{self.data_name}/{self.dataset_config}'
+        self.data_path = f'datasets/{self.data_name}/{self.model_type}/{self.dataset_config}'
         
         self.load_volumes()
         self.load_uncertainty_stats()
@@ -20,20 +21,39 @@ class Data():
         opacity_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_opacity.vtk'
         self.opacity_volume, self.opacity_reader = read_volume_from_vtk_file(opacity_file_name)
 
-        uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty.vtk'
-        self.uncertainty_volume, self.uncertainty_reader = read_volume_from_vtk_file(uncertainty_file_name)
+        if self.model_type == 'nn':
+            uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty.vtk'
+            self.uncertainty_volume, self.uncertainty_reader = read_volume_from_vtk_file(uncertainty_file_name)
+        elif self.model_type == 'ensemble':
+            uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty_density.vtk'
+            self.uncertainty_volume, self.uncertainty_reader = read_volume_from_vtk_file(uncertainty_file_name)
+
+            uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty_color.vtk'
+            self.uncertainty_volume_color, self.uncertainty_reader_color = read_volume_from_vtk_file(uncertainty_file_name)
     
     def load_uncertainty_stats(self):
-        means_file_name = f'{self.data_path}/uncertainty_means.csv'
-        stddev_file_name = f'{self.data_path}/uncertainty_standard_deviations.csv'
+        if self.model_type == 'nn':
+            means_file_name = f'{self.data_path}/uncertainty_means.csv'
+            stddev_file_name = f'{self.data_path}/uncertainty_standard_deviations.csv'
 
-        self.uncertainty_means = np.loadtxt(means_file_name, delimiter=",")
-        self.uncertainty_means_min_max = [np.min(self.uncertainty_means), np.max(self.uncertainty_means)]
-        self.uncertainty_means_shifted = self.shift_heatmap_values(self.uncertainty_means)
+            self.uncertainty_means, self.uncertainty_means_min_max, self.uncertainty_means_shifted = self.load_and_shift_stats(means_file_name)
+            self.uncertainty_stds, self.uncertainty_stds_min_max, self.uncertainty_stds_shifted = self.load_and_shift_stats(stddev_file_name)
+        elif self.model_type == 'ensemble':
+            color_means_file_name = means_file_name = f'{self.data_path}/color_means.csv'
+            color_stddev_file_name = f'{self.data_path}/color_standard_deviations.csv'
+            density_means_file_name = means_file_name = f'{self.data_path}/density_means.csv'
+            density_stddev_file_name = f'{self.data_path}/density_standard_deviations.csv'
 
-        self.uncertainty_stds = np.loadtxt(stddev_file_name, delimiter=",")
-        self.uncertainty_stds_min_max = [np.min(self.uncertainty_stds), np.max(self.uncertainty_stds)]
-        self.uncertainty_stds_shifted = self.shift_heatmap_values(self.uncertainty_stds)
+            self.color_means, self.color_means_min_max, self.color_means_shifted = self.load_and_shift_stats(color_means_file_name)
+            self.color_stddev, self.color_stddev_min_max, self.color_stddev_shifted = self.load_and_shift_stats(color_stddev_file_name)
+            self.uncertainty_means, self.uncertainty_means_min_max, self.uncertainty_means_shifted = self.load_and_shift_stats(density_means_file_name)
+            self.uncertainty_stds, self.uncertainty_stds_min_max, self.uncertainty_stds_shifted = self.load_and_shift_stats(density_stddev_file_name)
+
+    def load_and_shift_stats(self, file_name):
+        uncertainty_means = np.loadtxt(file_name, delimiter=",")
+        uncertainty_means_min_max = [np.min(uncertainty_means), np.max(uncertainty_means)]
+        uncertainty_means_shifted = self.shift_heatmap_values(uncertainty_means)
+        return uncertainty_means, uncertainty_means_min_max, uncertainty_means_shifted
 
     def load_angles(self):
         angles_file_name = f'{self.data_path}/angles_{self.dataset_config}__{self.data_name}.csv'
@@ -46,7 +66,6 @@ class Data():
         if filter:
             mask = data <= self.histogram_uncertainty_filter
             filtered_data = data[~mask]
-            # print(np.unique(filtered_data))
             hist, bin_edges = np.histogram(filtered_data, bins=num_bins, density=False, range=(0.0, 1.0))
         else:
             hist, bin_edges = np.histogram(data, bins=num_bins, density=False, range=(0.0, 1.0))
