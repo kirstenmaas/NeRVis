@@ -1,4 +1,6 @@
 import vtk
+import os
+import pdb
 
 from ..renderers.interactors import CustomQVTKRenderWindowInteractor
 
@@ -43,14 +45,35 @@ class TransferFunction(CustomQVTKRenderWindowInteractor):
 
     def setup_chart(self):
         chart = vtk.vtkChartXY()
+
         chart.SetTitle(self.title)
+        chart.GetTitleProperties().SetUseTightBoundingBox(False)
+        chart.GetTitleProperties().SetLineOffset(-30)
+        chart.GetTitleProperties().SetJustificationToCentered()
+        chart.GetTitleProperties().SetVerticalJustificationToCentered()
+        self.set_font_property(chart.GetTitleProperties(), font_size=15)
+
         chart.GetAxis(0).SetTitle(self.y_axis_label)
+        self.set_font_property(chart.GetAxis(0).GetLabelProperties(), font_size=14)
+        self.set_font_property(chart.GetAxis(0).GetTitleProperties(), font_size=14)
+        
         chart.GetAxis(1).SetTitle(self.x_axis_label)
+        self.set_font_property(chart.GetAxis(1).GetLabelProperties(), font_size=14)
+        self.set_font_property(chart.GetAxis(1).GetTitleProperties(), font_size=14)
+        
         chart.ForceAxesToBoundsOn()
         chart.GetAxis(vtk.vtkAxis.LEFT).SetBehavior(vtk.vtkAxis.FIXED)
+
         self.chart = chart
 
         self.view.GetScene().AddItem(chart)
+
+    def set_font_property(self, text_property, font_size=14, font_path='./assets/Inter.ttf'):
+        text_property.SetFontSize(font_size)
+        if os.path.exists(font_path):
+            text_property.BoldOff()
+            text_property.SetFontFamily(vtk.VTK_FONT_FILE)
+            text_property.SetFontFile(font_path)
 
     def setup_composite_function(self):
         item = vtk.vtkCompositeTransferFunctionItem()

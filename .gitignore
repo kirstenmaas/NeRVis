@@ -1,5 +1,6 @@
 *.vtk
 *.csv
+*.ckpt
 
 __pycache__/
 *.py[cod]

@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QGraphicsEllipseItem
 from PyQt6.QtGui import QTransform, QColor
 
 class ScatterPoint(QGraphicsEllipseItem):
-    def __init__(self, x, y, diameter=10):
+    def __init__(self, x, y, diameter=7):
         super(QGraphicsEllipseItem, self).__init__(x, y, diameter, diameter)
 
         self.diameter = diameter

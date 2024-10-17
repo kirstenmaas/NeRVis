@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 
 class CustomFrame(QFrame):
     def __init__(self, name, style_sheet=None, width=None, height=None):
-        super(QFrame, self).__init__()
+        super().__init__()
 
         self.name = name
 
@@ -17,3 +17,6 @@ class CustomFrame(QFrame):
 
         if height:
             self.setFixedHeight(height)
+
+    def closeEvent(self, QCloseEvent):
+        super().closeEvent(QCloseEvent)

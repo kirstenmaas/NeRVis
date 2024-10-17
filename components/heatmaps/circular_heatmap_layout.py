@@ -1,17 +1,27 @@
-from PyQt6.QtWidgets import QHBoxLayout
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QVBoxLayout, QLabel
 from .circular_heatmap_view import CircularHeatmapView
+
+from .styles import title_style
 
 import numpy as np
 
-class CircularHeatmapLayout(QHBoxLayout):
-    def __init__(self, parent, title, value_data, std_data, training_angles, camera, is_top=True):
+class CircularHeatmapLayout(QVBoxLayout):
+    def __init__(self, parent, title, value_data, std_data, heatmap_angles, training_angles, camera, is_top=True):
         super().__init__(parent)
 
         parent_size = parent.geometry().width()
 
-        self.setContentsMargins(0,0,0,0)
+        self.setContentsMargins(0, 10, 0, 0)
+        self.setSpacing(10)
 
-        self.heatmap_view = CircularHeatmapView(title, value_data, std_data, training_angles, parent_size, camera, is_top=is_top)
+        self.titleLabel = QLabel(title)
+        self.titleLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.titleLabel.setStyleSheet(title_style)
+
+        self.heatmap_view = CircularHeatmapView(title, value_data, std_data, heatmap_angles, training_angles, parent_size-45, camera, is_top=is_top)
+        
+        self.addWidget(self.titleLabel)
         self.addWidget(self.heatmap_view)
 
     def set_other_heatmap_layouts(self, other_heatmap_layouts):

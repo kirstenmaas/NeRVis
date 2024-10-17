@@ -1,0 +1,6 @@
+dataset: 'drums'
+model_type: 'nn'
+dataset_config: 'partial'
+iterations: 100000
+isosurface_filter_value: 0.9
+histogram_uncertainty_filter: 0.01

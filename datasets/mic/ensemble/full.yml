@@ -1,0 +1,6 @@
+dataset: 'mic'
+model_type: 'ensemble'
+dataset_config: 'full'
+iterations: 200000
+isosurface_filter_value: 0.9
+histogram_uncertainty_filter: 0.01

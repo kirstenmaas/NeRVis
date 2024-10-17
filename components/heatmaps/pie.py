@@ -5,6 +5,8 @@ from PyQt6.QtCore import Qt
 import numpy as np
 import pdb
 
+from helpers.vtk import range_lower_than_90
+
 class Pie(QGraphicsEllipseItem):
     def __init__(self, xy, diameter, is_top=True, is_parent_pie=False):
         super(QGraphicsEllipseItem, self).__init__(xy, xy, diameter, diameter) 
@@ -21,15 +23,29 @@ class Pie(QGraphicsEllipseItem):
         self.theta = None
         self.phi = None
         self.parent_pie = None
+        self.border_pie = None
+
+        self.start_angle = 0
+        self.span_angle = None
+
+        self.is_circle = False
+
         self.children = []
 
     def set_as_pie(self, start_angle, span_angle):
+        self.start_angle = start_angle
+        self.span_angle = span_angle
+
         self.setStartAngle(start_angle)
         self.setSpanAngle(span_angle)
 
-    def set_color(self, color):
-        brush = QColor(color[0], color[1], color[2])
+    def set_color(self, color, opacity=255):
+        self.color = color
+        brush = QColor(color[0], color[1], color[2], opacity)
         self.setBrush(brush)
+
+    def set_child_color(self, color):
+        self.child_color = color
 
     def set_value(self, value):
         self.value = value
@@ -39,15 +55,25 @@ class Pie(QGraphicsEllipseItem):
         transform.translate(-self.diameter/2, -self.diameter/2)
         self.setTransform(transform)
 
+    def set_color_angles(self, theta, phi):
+        self.color_theta = theta
+        self.color_phi = phi
+
     def set_angles(self, theta, phi):
-        self.theta = self.range_lower_than_90(theta)
-        self.phi = self.range_lower_than_90(phi)
+        self.theta = range_lower_than_90(theta)
+        self.phi = range_lower_than_90(phi)
 
         self.azimuth, self.elevation = self.thetaphi_to_azel(np.deg2rad(self.theta), np.deg2rad(self.phi))
 
         # correct for bottom sphere
         if not self.is_top:
+            if np.abs(self.phi) == 85:
+                self.phi = 180
+
             self.elevation += 180
+
+        if self.is_top and int(np.abs(self.phi)) == 85:
+            self.azimuth = 0
 
         for child_pie in self.children:
             child_pie.set_angles(theta, phi)
@@ -77,15 +103,11 @@ class Pie(QGraphicsEllipseItem):
         
         return az, el
     
-    def range_lower_than_90(self, angle):
-        # set angle to +-85 to avoid parallel view plane
-        if int(np.abs(angle)) == 90:
-            sign = angle/90
-            angle = sign * (np.abs(angle) - 5)
-        return angle
-    
     def set_parent_pie(self, pie):
         self.parent_pie = pie
+
+    def set_border_pie(self, pie):
+        self.border_pie = pie
 
     def set_children(self, pies):
         self.children = pies

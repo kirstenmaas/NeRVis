@@ -3,22 +3,23 @@ from PyQt6.QtWidgets import QGraphicsTextItem
 from PyQt6.QtGui import QTransform, QColor
 
 import numpy as np
-import matplotlib
-from matplotlib.colors import LinearSegmentedColormap
-from scipy.spatial.transform import Rotation as R
+from matplotlib import cm
 from scipy.interpolate import interp1d
 import pdb
 
 from .pie import Pie
 from .scatter_point import ScatterPoint
 
+from helpers.vtk import range_lower_than_90
+
 class CircularHeatmapScene(QGraphicsScene):
-    def __init__(self, title, value_data, std_data, training_angles, outer_diameter=400, angle_size=15, is_top=True):
+    def __init__(self, title, value_data, std_data, heatmap_angles, training_angles, outer_diameter=400, angle_size=15, is_top=True):
         super(CircularHeatmapScene, self).__init__()
 
         self.title = title
         self.value_data = value_data
         self.std_data = std_data
+        self.heatmap_angles = heatmap_angles
         self.training_angles = training_angles
 
         self.outer_diameter = outer_diameter
@@ -30,18 +31,14 @@ class CircularHeatmapScene(QGraphicsScene):
         
         self.is_top = is_top
 
-        self.preprocess_value_data()
+        self.set_theta_phi_ranges()
         self.draw_pies()
         self.set_angles_pies()
+        self.draw_child_pies()
 
-        # self.draw_training_points()
+        self.draw_training_points()
 
-    def preprocess_value_data(self):
-        value_data = self.value_data
-
-        # normalize data
-        self.value_data = (value_data - np.min(value_data)) / (np.max(value_data) - np.min(value_data))
-
+    def set_theta_phi_ranges(self):
         self.total_theta_range = np.arange(-180, 181, self.angle_size)
         self.total_phi_range = np.arange(-180, 181, self.angle_size)
 
@@ -52,22 +49,31 @@ class CircularHeatmapScene(QGraphicsScene):
         self.phi_range_bottom = [self.convert_angle_to_range(phi) for phi in np.arange(-90, 91, self.angle_size) + 180]#[self.convert_angle_to_range(phi) for phi in np.arange(90, 271, 15)]
 
     def get_sector_color(self, theta, phi):
-        theta_index = int(np.where(self.total_theta_range == theta)[0])
-        phi_index = int(np.where(self.total_phi_range == phi)[0])
-        data_point = self.value_data[phi_index, theta_index]
-        std_point = self.std_data[phi_index, theta_index]
+        heatmap_angles = self.heatmap_angles
+
+        theta = int(range_lower_than_90(theta))
+        phi = int(range_lower_than_90(phi))
+
+        angle_str = f'{theta}-{phi}'
+        
+        angle_index = np.argwhere(heatmap_angles == angle_str)
+        if len(angle_index) > 0:
+            theta_index, phi_index = angle_index[0]
+
+        data_point = self.value_data[theta_index, phi_index]
+        std_point = self.std_data[theta_index, phi_index]
         
         cmap_start = np.array([255, 255, 255]) / 255
         if 'color' in self.title.lower():
-            # green
-            cmap_end = np.array([35,139,69]) / 255
+            custom_range = [0.1, 0.9]
+            custom_cmap = cm.get_cmap('viridis', 100)
         else:
-            # purple
-            cmap_end = np.array([129, 15, 124]) / 255
+            custom_range = [0.1, 0.9]
+            custom_cmap = cm.get_cmap('inferno', 100)
         
-        cmap = LinearSegmentedColormap.from_list('custom_cmap', [cmap_start, cmap_end])
+        value_in_range = np.interp(data_point, [0, np.max(self.value_data)], custom_range)
 
-        rgba = np.array(cmap(data_point))
+        rgba = np.array(custom_cmap(value_in_range))
         rgb = rgba[:3] * 255
 
         return [rgb, data_point, std_point]
@@ -89,10 +95,13 @@ class CircularHeatmapScene(QGraphicsScene):
 
             for sector_index in range(num_sectors):
                 parent_pie = Pie(0, circle_diameter, is_top=self.is_top, is_parent_pie=True)
+                parent_pie.remove_pen()
 
                 # middle circle
                 if circle_index == num_rings - 1 and sector_index == 0:
                     parent_pie = self.draw_middle_circle(parent_pie)
+                    parent_pie.set_as_pie(start_angle, parent_span_angle*num_sectors)
+                    parent_pie.is_circle = True
 
                     self.addItem(parent_pie)
                     pies.append(parent_pie)
@@ -104,11 +113,8 @@ class CircularHeatmapScene(QGraphicsScene):
                     self.addItem(parent_pie)
                     pies.append(parent_pie)
 
-                    child_pies = self.draw_child_pies(parent_pie, start_angle, circle_diameter)
-                    parent_pie.set_children(child_pies)
-
                     start_angle += parent_span_angle
-        
+
         self.pies = pies
         self.circle_diameters = circle_diameters[::-1]
 
@@ -117,35 +123,60 @@ class CircularHeatmapScene(QGraphicsScene):
         if not self.is_top:
             theta, phi = [0, 180]
         pie.set_angles(theta, phi)
+        print(pie.theta, pie.phi, 'middle')
         color, data_point, std_point = self.get_sector_color(theta, phi)
 
-        pie.set_color(color)
+        pie.set_child_color(color)
+        pie.set_color([255, 255, 255])
         pie.set_value(data_point)
         return pie
 
-    def draw_child_pies(self, parent_pie, start_angle, circle_diameter):
-        # TODO: determine how many to draw and fill
-        num_childs = 3
-        child_span_angle = round(self.total_span/(self.num_sectors*num_childs))
+    def get_child_pies(self, std_point, parent_pie, parent_start_angle, parent_span_angle, circle_diameter, diviser=4):
+        minimal_span_angle = parent_span_angle / diviser
+        maximal_span_angle = parent_span_angle - minimal_span_angle
+        std_to_span_angle = interp1d([np.min(self.std_data), np.max(self.std_data)], [maximal_span_angle, minimal_span_angle])
+
+        ring_size = (self.outer_diameter / self.num_rings) / 2
+        maximal_diameter = circle_diameter - ring_size / diviser
+        minimal_diameter = circle_diameter - (ring_size - ring_size / diviser)
+        std_to_diameter = interp1d([np.min(self.std_data), np.max(self.std_data)], [maximal_diameter, minimal_diameter])
 
         child_pies = []
-        for i in range(num_childs):
-            # don't overdraw the borders to start a smitch later
-            child_start_angle = start_angle
-            child_diameter = circle_diameter - i*(self.outer_diameter / (self.num_rings*num_childs))
-            for j in range(num_childs):
-                child_pie = Pie(0, child_diameter, is_top=self.is_top, is_parent_pie=False)
-                child_pie.set_as_pie(child_start_angle, child_span_angle-5)
-                child_pie.remove_pen()
-                child_pie.set_parent_pie(parent_pie)
-                child_start_angle += child_span_angle
-                
-                if i == 1 and j == 1:
-                    child_pie.is_std = True
-                    child_pie.set_color([0, 0, 0])
-                
-                self.addItem(child_pie)
-                child_pies.append(child_pie)
+
+        # keep the same span angle if the pie is a circle
+        # also adjust the sizing of the area accordingly
+        if parent_pie.is_circle:
+            std_span_angle = parent_span_angle
+            std_start_angle = parent_start_angle
+
+            minimal_diameter = circle_diameter / diviser
+            maximal_diameter = circle_diameter - minimal_diameter
+            std_to_diameter = interp1d([np.min(self.std_data), np.max(self.std_data)], [maximal_diameter, minimal_diameter])
+        else:
+            std_span_angle = int(std_to_span_angle(std_point))
+            std_start_angle = parent_start_angle + (parent_span_angle-std_span_angle)/2
+
+        std_diameter = int(std_to_diameter(std_point))
+
+        std_child_pie = Pie(0, std_diameter, is_top=self.is_top, is_parent_pie=False)
+        std_child_pie.set_as_pie(std_start_angle, std_span_angle)
+        std_child_pie.remove_pen()
+        std_child_pie.set_parent_pie(parent_pie)
+        std_child_pie.is_std = True
+
+        std_child_pie.set_color(parent_pie.child_color, opacity=int(1*255))
+        # std_child_pie.set_color([0, 0, 0], opacity=int(1*255))
+        child_pies.append(std_child_pie)
+
+        # cover up the bottom ring part with a new pie
+        if not parent_pie.is_circle:
+            bottom_ring_diameter = (circle_diameter - std_diameter) + circle_diameter - ring_size*2
+            bottom_ring_pie = Pie(0, bottom_ring_diameter, is_top=self.is_top, is_parent_pie=False)
+            bottom_ring_pie.set_as_pie(parent_start_angle, parent_span_angle)
+            bottom_ring_pie.remove_pen()
+            bottom_ring_pie.set_color(parent_pie.color)
+            bottom_ring_pie.set_parent_pie(parent_pie)
+            child_pies.append(bottom_ring_pie)
 
         return child_pies
 
@@ -164,10 +195,14 @@ class CircularHeatmapScene(QGraphicsScene):
         for i, theta in enumerate(theta_range):
             for j, phi in enumerate(phi_range):
                 radius = angle_to_radius(abs(theta)) * min_radius + min_radius/2
+                
                 if theta < 0:
                     radius *= -1
+                
+                # rotate the heatmaps so that they line up nicely top-bottom
+                alpha = phi
 
-                alpha = np.deg2rad(phi)
+                alpha = np.deg2rad(alpha)
                 x, y = self.polar_to_cart(radius, alpha)
                 if self.is_top:
                     y *= -1
@@ -182,18 +217,46 @@ class CircularHeatmapScene(QGraphicsScene):
                     else:
                         continue
 
-                    if not pie.theta and not pie.phi:
-                        color, data_point, std_point = self.get_sector_color(theta, phi)
+                    set_phi = phi
+                    set_theta = theta
+                    if self.is_top and int(np.abs(phi)) == 90:
+                        set_phi = theta
+                        set_theta = 0
 
-                        pie.set_color(color)
+                    pie.set_color_angles(set_theta, set_phi)
+                    if not pie.theta and not pie.phi:
+                        color, data_point, std_point = self.get_sector_color(set_theta, set_phi)
+
+                        pie.set_child_color(color)
+                        pie.set_color([255, 255, 255])
                         pie.set_value(data_point)
+
+                        # if int(theta) == -90 and int(phi) == 90:
+                        #     pdb.set_trace()
 
                         pie.set_angles(theta, phi)
 
-                        for child in pie.children:
-                            if not child.is_std:
-                                child.set_color(color)
-                                child.set_value(data_point)
+                    child_pies = self.get_child_pies(std_point, pie, pie.start_angle, pie.span_angle, pie.diameter)
+                    pie.set_children(child_pies)
+
+    def draw_child_pies(self):
+
+        # remove all the drawn pies
+        for pie in self.pies:
+            self.removeItem(pie)
+        
+        # redraw the pies one by one so they are visible in z direction correctly
+        for pie in self.pies:
+            self.addItem(pie)
+
+            for child_pie in pie.children:
+                self.addItem(child_pie)
+
+            border_pie = Pie(0, pie.diameter, pie.is_top)
+            border_pie.set_as_pie(pie.start_angle, pie.span_angle)
+            border_pie.set_parent_pie(pie)
+            pie.set_border_pie(border_pie)
+            self.addItem(border_pie)
 
     def draw_training_points(self):
         training_angles = self.training_angles
@@ -216,13 +279,16 @@ class CircularHeatmapScene(QGraphicsScene):
             training_angle_count += 1
 
             radius = theta / self.angle_size * min_radius + min_radius
-            alpha = np.deg2rad(phi)
+            # rotate the heatmaps so that they line up nicely top-bottom
+            alpha = phi
+            alpha = np.deg2rad(alpha)
+
             x, y = self.polar_to_cart(radius, alpha)
             if self.is_top:
                 y *= -1
 
             scatter = ScatterPoint(x, y)
-            scatter.set_color([0, 0, 0, 0.5*255])
+            scatter.set_color([180,180,180, int(255)])
 
             # get parent pie at x, y
             parent_pie = self.itemAt(x, y, QTransform())

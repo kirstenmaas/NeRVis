@@ -18,6 +18,7 @@ class ZBuffer():
         self.renderers = renderers
 
     def update_buffer(self):
+        # self.disable_buffer()
         if self.display_isosurface:
             self.set_buffer()
             self.update_buffer_renderers()

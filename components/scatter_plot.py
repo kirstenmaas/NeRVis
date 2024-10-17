@@ -41,9 +41,11 @@ class ScatterPlot(QVBoxLayout):
         self.canvas = FigureCanvas(Figure(figsize=(10,10)))
         self._main.addWidget(self.canvas)
 
-        subplot_kw = dict(xlim=(0, 1), ylim=(-1.0, 15.0), autoscale_on=False)
         self.fig = self.canvas.figure
-        self.ax = self.fig.subplots(subplot_kw=subplot_kw)
+        self.ax = self.fig.subplots()
+
+        self.ax.set_xlim(0, np.max(data[:, 1]))
+
         # self.heatmap_ax = self.fig.subplots()
         self.ax.set_title("Uncertainty distribution")
         self.ax.set_xlabel('Uncertainty value')

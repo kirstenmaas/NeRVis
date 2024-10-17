@@ -1,9 +1,11 @@
 from .vtk import read_volume_from_vtk_file
+import vtk.util.numpy_support as numpy_support
 
+import pdb
 import numpy as np
 
 class Data():
-    def __init__(self, config_args):
+    def __init__(self, config_args, prepare_data=False):
         self.data_name = config_args['dataset']
         self.model_type = config_args['model_type']
         self.dataset_config = config_args['dataset_config']
@@ -14,8 +16,13 @@ class Data():
         self.data_path = f'datasets/{self.data_name}/{self.model_type}/{self.dataset_config}'
         
         self.load_volumes()
-        self.load_uncertainty_stats()
-        self.load_angles()
+
+        if not prepare_data:
+            self.load_uncertainty_stats()
+            self.load_angles()
+
+        if self.model_type == 'ensemble':
+            self.prepare_2d_plot()
     
     def load_volumes(self):
         opacity_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_opacity.vtk'
@@ -30,35 +37,53 @@ class Data():
 
             uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty_color.vtk'
             self.uncertainty_volume_color, self.uncertainty_reader_color = read_volume_from_vtk_file(uncertainty_file_name)
+
+            self.filter_color_uncertainty_volume()
     
+    def filter_color_uncertainty_volume(self):
+        # filter out the values lower than the threshold for the color uncertainty volume
+        # filter out the density = 0 values from the color uncertainty volume
+        uncertainty_color_data = self.uncertainty_reader_color.GetOutput()
+        uncertainty_color_scalars = uncertainty_color_data.GetPointData().GetScalars()
+        uncertainty_color_scalars_np = numpy_support.vtk_to_numpy(uncertainty_color_scalars)
+
+        density_scalars = self.opacity_reader.GetOutput().GetPointData().GetScalars()
+        density_scalars_np = numpy_support.vtk_to_numpy(density_scalars)
+        empty_ids = np.argwhere(density_scalars_np < 1e-10)
+        uncertainty_color_scalars_np[empty_ids] = 0
+
+        uncertainty_color_scalars = numpy_support.numpy_to_vtk(uncertainty_color_scalars, deep=True)
+        uncertainty_color_data.GetPointData().SetScalars(uncertainty_color_scalars)
+        self.uncertainty_reader_color.SetOutput(uncertainty_color_data)
+
     def load_uncertainty_stats(self):
+        angles_file_name = f'{self.data_path}/heatmap_angles.csv'
+        self.uncertainty_angles = np.genfromtxt(angles_file_name, dtype='str', delimiter=',')
         if self.model_type == 'nn':
             means_file_name = f'{self.data_path}/uncertainty_means.csv'
             stddev_file_name = f'{self.data_path}/uncertainty_standard_deviations.csv'
 
-            self.uncertainty_means, self.uncertainty_means_min_max, self.uncertainty_means_shifted = self.load_and_shift_stats(means_file_name)
-            self.uncertainty_stds, self.uncertainty_stds_min_max, self.uncertainty_stds_shifted = self.load_and_shift_stats(stddev_file_name)
+            self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(means_file_name)
+            self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(stddev_file_name)
         elif self.model_type == 'ensemble':
             color_means_file_name = means_file_name = f'{self.data_path}/color_means.csv'
             color_stddev_file_name = f'{self.data_path}/color_standard_deviations.csv'
             density_means_file_name = means_file_name = f'{self.data_path}/density_means.csv'
             density_stddev_file_name = f'{self.data_path}/density_standard_deviations.csv'
 
-            self.color_means, self.color_means_min_max, self.color_means_shifted = self.load_and_shift_stats(color_means_file_name)
-            self.color_stddev, self.color_stddev_min_max, self.color_stddev_shifted = self.load_and_shift_stats(color_stddev_file_name)
-            self.uncertainty_means, self.uncertainty_means_min_max, self.uncertainty_means_shifted = self.load_and_shift_stats(density_means_file_name)
-            self.uncertainty_stds, self.uncertainty_stds_min_max, self.uncertainty_stds_shifted = self.load_and_shift_stats(density_stddev_file_name)
+            self.color_means, self.color_means_min_max = self.load_stats(color_means_file_name)
+            self.color_stds, self.color_stds_min_max = self.load_stats(color_stddev_file_name)
+            self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(density_means_file_name)
+            self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(density_stddev_file_name)
 
-    def load_and_shift_stats(self, file_name):
+    def load_stats(self, file_name):
         uncertainty_means = np.loadtxt(file_name, delimiter=",")
         uncertainty_means_min_max = [np.min(uncertainty_means), np.max(uncertainty_means)]
-        uncertainty_means_shifted = self.shift_heatmap_values(uncertainty_means)
-        return uncertainty_means, uncertainty_means_min_max, uncertainty_means_shifted
+        return uncertainty_means, uncertainty_means_min_max
 
     def load_angles(self):
         angles_file_name = f'{self.data_path}/angles_{self.dataset_config}__{self.data_name}.csv'
         self.angles = np.loadtxt(angles_file_name, delimiter=",")
-        # self.angles_shifted = self.shift_angles(self.angles)
 
     def get_histogram_data(self, reader, num_bins=20, filter=True):
         data, _ = self.vtk_reader_to_numpy(reader)
@@ -118,3 +143,16 @@ class Data():
             angles_list.append([angle_x_shifted, angle_y_shifted])
         angles = np.array(angles_list)
         return angles
+
+    def prepare_2d_plot(self):
+        self.point_colors = numpy_support.vtk_to_numpy(self.uncertainty_volume_color.GetPointData().GetScalars())
+        self.point_densities = numpy_support.vtk_to_numpy(self.uncertainty_volume.GetPointData().GetScalars())
+        self.point_indices = np.arange(self.point_colors.shape[0]).astype('int')
+
+        filtered_color_ind = np.argwhere(self.point_colors > self.histogram_uncertainty_filter).flatten()
+        filtered_density_ind = np.argwhere(self.point_densities > self.histogram_uncertainty_filter).flatten()
+        filtered_ind = np.intersect1d(filtered_color_ind, filtered_density_ind)
+
+        scatter_plot_data = np.column_stack((self.point_colors, self.point_densities, self.point_indices))
+
+        self.scatter_plot_data = scatter_plot_data[filtered_ind]

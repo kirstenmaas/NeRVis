@@ -1,6 +1,11 @@
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 import vtk
 import numpy as np
+import vtk.util.numpy_support as numpy_support
+import copy
+import os
+import pdb
+from matplotlib import cm
 
 from .color_bar import ColorBar
 
@@ -19,6 +24,10 @@ class CustomQVTKRenderWindowInteractor(QVTKRenderWindowInteractor):
         self.GetRenderWindow().SetSize(parent_size.width(), parent_size.height())
         self.update()
 
+    def closeEvent(self, QCloseEvent):
+        self.Finalize()
+        super().closeEvent(QCloseEvent)
+
 class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
     def __init__(self, parent, title_txt):
         super().__init__(parent)
@@ -35,14 +44,23 @@ class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
         style = vtk.vtkInteractorStyleTrackballCamera()
         self.SetInteractorStyle(style)
 
-    def set_title(self, title_txt):
+    def set_title(self, title_txt, font_path='./assets/Inter.ttf'):
         title = vtk.vtkTextActor()
         title.SetTextScaleModeToNone()
-        title.GetTextProperty().SetFontSize(24)
+        
+        if os.path.exists(font_path):
+            title.GetTextProperty().SetFontFamily(vtk.VTK_FONT_FILE)
+            title.GetTextProperty().SetFontFile(font_path)
+
+        # title.GetTextProperty().SetFontFamilyToTimes()
+        title.GetTextProperty().SetFontSize(14)
         title.GetTextProperty().SetColor(0.0, 0.0, 0.0)
         title.GetTextProperty().SetJustificationToCentered()
-        title.SetPosition(200, 0)
+        title.SetPosition(150, 0)
+        title.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
+        title.GetPositionCoordinate().SetValue(0.5, 0.9)
         title.SetInput(title_txt)
+
         self.title = title
 
     def disable_z_buffer(self, obj=None, key=None):
@@ -129,8 +147,8 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         actor.SetMapper(self.mapper)
         #actor.GetProperty().SetColor(colors.GetColor3d('green'))
 
-        blue_color = np.array([8,104,172]) / 255
-        actor.GetProperty().SetColor(blue_color[0], blue_color[1], blue_color[2])
+        purple_color = np.array([212,185,218]) / 255
+        actor.GetProperty().SetColor(purple_color[0], purple_color[1], purple_color[2])
 
         actor.SetVisibility(True)
         return actor
@@ -138,8 +156,8 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
     def setup_renderer(self):
         renderer = vtk.vtkRenderer()
 
-        renderer.AddVolume(self.actor)
         renderer.AddVolume(self.title)
+        renderer.AddVolume(self.actor)
 
         renderer.SetBackground(colors.GetColor3d('white'))
 
@@ -181,6 +199,8 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         self.uncertainty_mapper = self.setup_mapper(self.uncertainty_reader)
         self.uncertainty_volume = self.setup_volume(volume_property, self.uncertainty_mapper)
 
+        self.uncertainty_scalars = self.uncertainty_reader.GetOutput().GetPointData().GetScalars()
+
     def setup_volume(self, volume_property, volume_mapper):
         volume = vtk.vtkVolume()
         volume.SetMapper(volume_mapper)
@@ -188,30 +208,21 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         return volume
 
     def setup_uncertainty_tfs(self):
-        is_color_unc_tf = 'color' in self.name
+        is_color_unc_tf = 'color' in self.name.lower()
 
         opacity_tf = vtk.vtkPiecewiseFunction()
         opacity_tf.AddPoint(0, 0)
-        
-        if is_color_unc_tf:
-            opacity_tf.AddPoint(0.85, 1)
-        else:
-            opacity_tf.AddPoint(0.25, 1)
+        opacity_tf.AddPoint(0.25, 1)
         self.uncertainty_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
-        color_tf.AddRGBPoint(0.00, 1.0, 1.0, 1.0)
         if is_color_unc_tf:
-            # yellow
-            # color_tf.AddRGBPoint(1.00, 1.0, 0.647, 0)
-
-            green = np.array([35,139,69]) / 255
-            color_tf.AddRGBPoint(1, green[0], green[1], green[2])
+            custom_cmap = cm.get_cmap('viridis', 100)
         else:
-            # red
-            # color_tf.AddRGBPoint(1.00, 1.0, 0, 0)
-            purple = np.array([129,15,124]) / 255
-            color_tf.AddRGBPoint(1, purple[0], purple[1], purple[2])
+            custom_cmap = cm.get_cmap('inferno', 100)
+        color_tf.AddRGBPoint(0.00, 1.0, 1.0, 1.0)
+        max_val = np.array(custom_cmap(0.5))[:3]
+        color_tf.AddRGBPoint(1, max_val[0], max_val[1], max_val[2])
 
         self.uncertainty_color_tf = color_tf
 
@@ -268,3 +279,22 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         self.density_volume.GetProperty().SetScalarOpacity(self.density_opacity_tf)
         self.uncertainty_volume.GetProperty().SetScalarOpacity(self.uncertainty_opacity_tf)
         self.GetRenderWindow().Render()
+
+    def set_selected_alpha(self, selected_inds):
+        uncertainty_reader_data = self.uncertainty_reader.GetOutput()
+
+        original_scalars = numpy_support.vtk_to_numpy(self.uncertainty_scalars)
+        scalar_inds = np.arange(original_scalars.shape[0])
+
+        new_scalars = copy.deepcopy(original_scalars)
+        unselected_inds = np.setdiff1d(scalar_inds, selected_inds)
+        new_scalars[unselected_inds] = 0
+
+        new_scalars_vtk = numpy_support.numpy_to_vtk(num_array=new_scalars, deep=True)
+        uncertainty_reader_data.GetPointData().SetScalars(new_scalars_vtk)
+        self.uncertainty_reader.SetOutput(uncertainty_reader_data)
+        self.update_z_buffer()
+
+    def reset_alphas(self):
+        self.uncertainty_reader.GetOutput().GetPointData().SetScalars(self.uncertainty_scalars)
+        self.update_z_buffer()

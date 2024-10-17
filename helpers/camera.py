@@ -1,5 +1,6 @@
 import vtk
 import numpy as np
+import pdb
 
 class CustomCamera(vtk.vtkCamera):
     def __init__(self):
@@ -48,14 +49,3 @@ class CustomCamera(vtk.vtkCamera):
 
         self.Azimuth(azimuth)
         self.Elevation(elevation)
-
-    def similarity_vectors(self, vector1, vector2):
-        dot_product = np.dot(vector1, vector2)
-        norm_vector1 = np.linalg.norm(vector1)
-        norm_vector2 = np.linalg.norm(vector2)
-        cos_similarity = dot_product / (norm_vector1 * norm_vector2)
-
-        # Calculate the angle in degrees
-        angle = np.arccos(cos_similarity) * 180.0 / np.pi
-
-        return angle, cos_similarity
