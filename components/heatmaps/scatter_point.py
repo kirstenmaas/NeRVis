@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QGraphicsEllipseItem
-from PyQt6.QtGui import QTransform, QColor
+from PyQt6.QtGui import QTransform, QColor, QPen
 
 class ScatterPoint(QGraphicsEllipseItem):
     def __init__(self, x, y, diameter=7):
@@ -20,7 +20,10 @@ class ScatterPoint(QGraphicsEllipseItem):
     def set_color(self, color=[0, 0, 255, 1]):
         brush = QColor(color[0], color[1], color[2], color[3])
         self.setBrush(brush)
-        # self.setPen(None)
+
+        # pen = QPen()
+        # pen.setWidth(2)
+        # self.setPen(pen)
 
     def set_parent_pie(self, pie):
         self.parent_pie = pie

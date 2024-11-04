@@ -12,6 +12,12 @@ class Data():
         self.iterations = config_args['iterations']
         self.isosurface_filter_value = config_args['isosurface_filter_value']
         self.histogram_uncertainty_filter = config_args['histogram_uncertainty_filter']
+        self.vmax_density = config_args['vmax_density'] if 'vmax_density' in config_args else 'None'
+        self.vmax_color = config_args['vmax_color'] if 'vmax_color' in config_args else 'None'
+        self.vmin_std_density = config_args['vmin_std_density'] if 'vmin_std_density' in config_args else 'None'
+        self.vmin_std_color = config_args['vmin_std_color'] if 'vmin_std_color' in config_args else 'None'
+        self.vmax_std_density = config_args['vmax_std_density'] if 'vmax_std_density' in config_args else 'None'
+        self.vmax_std_color = config_args['vmax_std_color'] if 'vmax_std_color' in config_args else 'None'
 
         self.data_path = f'datasets/{self.data_name}/{self.model_type}/{self.dataset_config}'
         
@@ -31,6 +37,8 @@ class Data():
         if self.model_type == 'nn':
             uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty.vtk'
             self.uncertainty_volume, self.uncertainty_reader = read_volume_from_vtk_file(uncertainty_file_name)
+
+            self.filter_nn_uncertainty_volume()
         elif self.model_type == 'ensemble':
             uncertainty_file_name = f'{self.data_path}/{self.data_name}_{self.dataset_config}_{self.iterations}_uncertainty_density.vtk'
             self.uncertainty_volume, self.uncertainty_reader = read_volume_from_vtk_file(uncertainty_file_name)
@@ -56,6 +64,22 @@ class Data():
         uncertainty_color_data.GetPointData().SetScalars(uncertainty_color_scalars)
         self.uncertainty_reader_color.SetOutput(uncertainty_color_data)
 
+    def filter_nn_uncertainty_volume(self):
+        # filter out the values lower than the threshold for the nn uncertainty volume
+        # filter out the density = 0 values from the nn uncertainty volume
+        uncertainty_data = self.uncertainty_reader.GetOutput()
+        uncertainty_scalars = uncertainty_data.GetPointData().GetScalars()
+        uncertainty_scalars_np = numpy_support.vtk_to_numpy(uncertainty_scalars)
+
+        density_scalars = self.opacity_reader.GetOutput().GetPointData().GetScalars()
+        density_scalars_np = numpy_support.vtk_to_numpy(density_scalars)
+        empty_ids = np.argwhere(density_scalars_np < 1e-10)
+        uncertainty_scalars_np[empty_ids] = 0
+
+        uncertainty_scalars = numpy_support.numpy_to_vtk(uncertainty_scalars, deep=True)
+        uncertainty_data.GetPointData().SetScalars(uncertainty_scalars)
+        self.uncertainty_reader.SetOutput(uncertainty_data)
+
     def load_uncertainty_stats(self):
         angles_file_name = f'{self.data_path}/heatmap_angles.csv'
         self.uncertainty_angles = np.genfromtxt(angles_file_name, dtype='str', delimiter=',')
@@ -65,6 +89,9 @@ class Data():
 
             self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(means_file_name)
             self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(stddev_file_name)
+            self.uncertainty_max = self.vmax_density if self.vmax_density != 'None' else np.max(self.uncertainty_means)
+            self.uncertainty_stds_min = self.vmin_std_density if self.vmin_std_density != 'None' else np.min(self.uncertainty_stds)
+            self.uncertainty_stds_max = self.vmax_std_density if self.vmax_std_density != 'None' else np.max(self.uncertainty_stds)
         elif self.model_type == 'ensemble':
             color_means_file_name = means_file_name = f'{self.data_path}/color_means.csv'
             color_stddev_file_name = f'{self.data_path}/color_standard_deviations.csv'
@@ -75,6 +102,19 @@ class Data():
             self.color_stds, self.color_stds_min_max = self.load_stats(color_stddev_file_name)
             self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(density_means_file_name)
             self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(density_stddev_file_name)
+
+            self.uncertainty_max = self.vmax_density if self.vmax_density != 'None' else np.max(self.uncertainty_means)
+            self.uncertainty_stds_min = self.vmin_std_density if self.vmin_std_density != 'None' else np.min(self.uncertainty_stds)
+            self.uncertainty_stds_max = self.vmax_std_density if self.vmax_std_density != 'None' else np.max(self.uncertainty_stds)
+            
+            self.color_max = self.vmax_color if self.vmax_color != 'None' else np.max(self.color_means)
+            self.color_stds_min = self.vmin_std_color if self.vmin_std_color != 'None' else np.min(self.color_stds)
+            self.color_stds_max = self.vmax_std_color if self.vmax_std_color != 'None' else np.max(self.color_stds)
+            
+            print('color max', self.color_max)
+            print('color stds min-max', self.color_stds_min, self.color_stds_max)
+        print('density max', self.uncertainty_max)
+        print('uncertainty stds min-max', self.uncertainty_stds_min, self.uncertainty_stds_max)
 
     def load_stats(self, file_name):
         uncertainty_means = np.loadtxt(file_name, delimiter=",")

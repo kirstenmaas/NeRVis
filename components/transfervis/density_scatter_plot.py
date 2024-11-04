@@ -145,7 +145,7 @@ class SelectFromCollection:
             # draw the selected points
             alpha_data[self.inds, -1] = self.selected_alpha
 
-            print(self.unselected_alpha)
+            # print(self.unselected_alpha)
 
             scatter_plot = self.create_scatter_plot(color_data, density_data, alpha_data)
         else:

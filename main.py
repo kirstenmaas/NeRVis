@@ -59,7 +59,7 @@ def main(config_args):
 
         plane_widget_windows.append(color_uncertainty_window)
 
-    plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
+    # plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
 
     synthesis_view = SynthesisView(main_layout.synthesis_image_frame)
     synthesis_button = SynthesisButton('Render image', main_layout.synthesis_layout, camera, synthesis_view, data)
@@ -88,23 +88,23 @@ def main(config_args):
     # heatmaps
     all_heatmaps = []
     heatmap_title = 'Uncertainty - Upper Sphere' if data.model_type == 'nn' else 'Density Uncertainty - Upper Sphere'
-    mean_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_top, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
+    mean_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_top, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, vmax=data.uncertainty_max, vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
     
     colorbar_title = 'Uncertainty mean' if data.model_type == 'nn' else 'Density uncertainty mean'
-    mean_colorbar = Colorbar(main_layout.vis_tab_widget.mean_heatmap_colorbar, vmin=0, vmax=np.max(data.uncertainty_means), color_str='purple', name=colorbar_title)
+    mean_colorbar = Colorbar(main_layout.vis_tab_widget.mean_heatmap_colorbar, vmin=0, vmax=data.uncertainty_max, color_str='purple', name=colorbar_title)
     window.set_mpl_plot(mean_colorbar)
 
     heatmap_title = 'Uncertainty - Lower Sphere' if data.model_type == 'nn' else 'Density uncertainty - Lower Sphere'
-    mean_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_bottom, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)    
+    mean_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_bottom, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, vmax=data.uncertainty_max, vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)    
     
     all_heatmaps.append(mean_heatmap_top)
     all_heatmaps.append(mean_heatmap_bottom)
 
     if data.model_type == 'ensemble':
-        mean_color_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_top, 'Color Uncertainty - Upper Sphere', value_data=data.color_means, std_data=data.color_stds, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
-        mean_color_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_bottom, 'Color Uncertainty - Lower Sphere', value_data=data.color_means, std_data=data.color_stds, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)
+        mean_color_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_top, 'Color Uncertainty - Upper Sphere', value_data=data.color_means, std_data=data.color_stds, vmax=data.color_max, vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
+        mean_color_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_bottom, 'Color Uncertainty - Lower Sphere', value_data=data.color_means, std_data=data.color_stds, vmax=data.color_max, vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)
 
-        color_colorbar = Colorbar(main_layout.vis_tab_widget.mean_color_heatmap_colorbar, vmin=0, vmax=np.max(data.color_means), color_str='green', name='Color uncertainty mean')
+        color_colorbar = Colorbar(main_layout.vis_tab_widget.mean_color_heatmap_colorbar, vmin=0, vmax=data.color_max, color_str='green', name='Color uncertainty mean')
         window.set_mpl_plot(color_colorbar)
 
         all_heatmaps.append(mean_color_heatmap_top)

@@ -55,7 +55,7 @@ nerf:
     num_random_rays: 2048
     perturb: true
     radiance_field_noise_std: 0.2
-    white_background: false
+    white_background: true
   use_viewdirs: true
   validation:
     chunksize: 20000
@@ -66,7 +66,7 @@ nerf:
     num_fine: 128
     perturb: false
     radiance_field_noise_std: 0.0
-    white_background: false
+    white_background: true
 optimizer:
   lr: 0.005
   type: Adam

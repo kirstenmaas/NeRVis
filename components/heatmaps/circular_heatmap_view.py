@@ -8,7 +8,7 @@ import numpy as np
 import pdb
 
 class CircularHeatmapView(QGraphicsView):
-    def __init__(self, title, value_data, std_data, heatmap_angles, training_angles, outer_diameter=500, camera=None, is_top=True):
+    def __init__(self, title, value_data, std_data, vmax, vmin_std, vmax_std, heatmap_angles, training_angles, outer_diameter=500, camera=None, is_top=True):
         super(CircularHeatmapView, self).__init__()
 
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -22,7 +22,7 @@ class CircularHeatmapView(QGraphicsView):
 
         self.setMouseTracking(True)
 
-        self.heatmap_scene = CircularHeatmapScene(title, value_data, std_data, heatmap_angles, training_angles, outer_diameter=outer_diameter-5, is_top=is_top)
+        self.heatmap_scene = CircularHeatmapScene(title, value_data, std_data, vmax, vmin_std, vmax_std, heatmap_angles, training_angles, outer_diameter=outer_diameter-5, is_top=is_top)
         self.setScene(self.heatmap_scene)
 
         self.camera = camera
@@ -53,7 +53,7 @@ class CircularHeatmapView(QGraphicsView):
                         other_pie.border_pie.set_pen()
 
                         # pie in the same position
-                        if other_scene.is_top == self.heatmap_scene.is_top and other_pie.theta == current_pie.theta and other_pie.phi == current_pie.phi:
+                        if other_scene.is_top == self.heatmap_scene.is_top and other_pie.azimuth == current_pie.azimuth and other_pie.elevation == current_pie.elevation:
                             index_pie = other_pie
 
                     if index_pie:
@@ -63,6 +63,11 @@ class CircularHeatmapView(QGraphicsView):
         current_pie = self.getPieAtLoc(event)
 
         if current_pie:
+            # print(current_pie.azimuth, current_pie.elevation)
+            # print(current_pie.theta, current_pie.phi)
+            # print(current_pie.color_theta, current_pie.color_phi)
+            # print(current_pie.value)
+
             if current_pie.border_pie.pen_width == self.selected_pen_width:
                 current_pie.border_pie.set_pen()
                 self.disableMove = False
@@ -88,7 +93,7 @@ class CircularHeatmapView(QGraphicsView):
                         other_pie.border_pie.set_pen()
 
                         # pie in the same position
-                        if other_scene.is_top == self.heatmap_scene.is_top and other_pie.theta == current_pie.theta and other_pie.phi == current_pie.phi:
+                        if other_scene.is_top == self.heatmap_scene.is_top and other_pie.azimuth == current_pie.azimuth and other_pie.elevation == current_pie.elevation:
                             index_pie = other_pie
 
                     if index_pie:

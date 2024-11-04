@@ -71,13 +71,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config_file = args.config
 
-    # datasets = ['chair', 'mic', 'drums']
-    # model_types = ['nn', 'ensemble']
-    # data_types = ['partial', 'full']
+    datasets = ['chair', 'mic', 'drums']
+    model_types = ['nn', 'ensemble']
+    data_types = ['partial', 'full']
 
-    datasets = ['chair']
-    model_types = ['ensemble']
-    data_types = ['full']
+    # datasets = ['chair']
+    # model_types = ['ensemble']
+    # data_types = ['full']
     
     for dataset in datasets:
         for model_type in model_types:

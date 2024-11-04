@@ -4,3 +4,9 @@ dataset_config: 'full'
 iterations: 200000
 isosurface_filter_value: 0.9
 histogram_uncertainty_filter: 0.01
+vmax_density: None
+vmax_color: None
+vmin_std_density: None
+vmin_std_color: None
+vmax_std_density: None
+vmax_std_color: None
