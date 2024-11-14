@@ -159,7 +159,7 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         renderer.AddVolume(self.title)
         renderer.AddVolume(self.actor)
 
-        renderer.SetBackground(colors.GetColor3d('white'))
+        renderer.SetBackground(255, 255, 255)
 
         self.GetRenderWindow().AddRenderer(renderer)
 
@@ -237,8 +237,10 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         self.density_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
+        purple_color = np.array([33,113,181]) / 255
+        
         color_tf.AddRGBPoint(0.00, 0.0, 0.0, 0.0)
-        color_tf.AddRGBPoint(1.00, 1.0, 1.0, 1.0)
+        color_tf.AddRGBPoint(1.00, purple_color[0], purple_color[1], purple_color[2])
         
         self.density_color_tf = color_tf
 
@@ -268,7 +270,7 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         renderer.AddVolume(self.uncertainty_volume)
         renderer.AddVolume(self.colorbar.actor)
         renderer.AddVolume(self.title)
-        renderer.SetBackground(colors.GetColor3d('white'))
+        renderer.SetBackground(255, 255, 255)
 
         self.renderer = renderer
 

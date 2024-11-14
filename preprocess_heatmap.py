@@ -4,6 +4,7 @@ import yaml
 import vtk
 import numpy as np
 import pdb
+import time
 
 import matplotlib.pyplot as plt
 
@@ -12,6 +13,8 @@ from helpers.preprocess import setup_isosurface, setup_uncertainty_volume, setup
 
 def main(config_args):
     data = Data(config_args, prepare_data=True)
+
+    start = time.time()
     
     iso_contour, iso_mapper, iso_actor = setup_isosurface(data)
     density_volume = setup_uncertainty_volume(data.uncertainty_reader)
@@ -61,6 +64,9 @@ def main(config_args):
     if data.model_type == 'ensemble':
         np.savetxt(f'{data.data_path}/color_means.csv', means_color, delimiter=',')
         np.savetxt(f'{data.data_path}/color_standard_deviations.csv', standard_deviations_color, delimiter=',')
+    
+    end = time.time()
+    print('time', end - start)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

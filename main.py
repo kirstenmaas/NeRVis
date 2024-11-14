@@ -59,7 +59,7 @@ def main(config_args):
 
         plane_widget_windows.append(color_uncertainty_window)
 
-    # plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
+    plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
 
     synthesis_view = SynthesisView(main_layout.synthesis_image_frame)
     synthesis_button = SynthesisButton('Render image', main_layout.synthesis_layout, camera, synthesis_view, data)

@@ -221,7 +221,7 @@ def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_
 
             iso_image_filter = np.rot90(iso_image_filter, k=1)
 
-            plt.imsave(f'iso/{new_theta}-{new_phi}-{np.around(azimuth, 2)}-{np.around(elevation, 2)}.png', iso_image_filter)
+            # plt.imsave(f'iso/{new_theta}-{new_phi}-{np.around(azimuth, 2)}-{np.around(elevation, 2)}.png', iso_image_filter)
             # pdb.set_trace()
 
             density_image_filter = get_image_filter(density_renderer.GetRenderWindow())
@@ -242,7 +242,7 @@ def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_
             # plt.close()
             # pdb.set_trace()
 
-            plt.imsave(f'density/{new_theta}-{new_phi}.png', density_image_filter)
+            # plt.imsave(f'density/{new_theta}-{new_phi}.png', density_image_filter)
             means_density[i, j] = np.mean(density_image_occupied)
 
             # density_image_occupied[density_image_occupied > 0] = 1
