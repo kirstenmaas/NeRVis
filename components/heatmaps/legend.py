@@ -1,15 +1,17 @@
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget, QGraphicsScene, QGraphicsEllipseItem, QGraphicsView, QGraphicsTextItem, QGraphicsRectItem
+from PyQt6.QtWidgets import QHBoxLayout, QButtonGroup, QRadioButton, QWidget, QGraphicsScene, QGraphicsEllipseItem, QGraphicsView, QGraphicsTextItem, QGraphicsRectItem
 from PyQt6.QtGui import QColor, QFont
 
 class Legend(QHBoxLayout):
-    def __init__(self, parent):
+    def __init__(self, parent, all_heatmaps):
         super().__init__(parent)
 
-        self.setContentsMargins(10, 0, 0, 0)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.all_heatmaps = all_heatmaps
 
         self.draw_training_point()
-        self.draw_stddev_box('Low standard deviation', 0.4)
-        self.draw_stddev_box('High standard deviation', 0.6)
+        self.draw_stddev_box('Low standard deviation', 0.6)
+        self.draw_stddev_box('High standard deviation', 0.4)
+        self.draw_toggle_button()
 
     def draw_training_point(self, color=[125, 125, 125, 255]):
         training_point_widget = QWidget()
@@ -29,7 +31,7 @@ class Legend(QHBoxLayout):
         scatter_point_view.setScene(scatter_point_scene)
 
         scatter_point = QGraphicsEllipseItem(0, 0, 10, 10)
-        brush = QColor(color[0], color[1], color[2], color[3])
+        brush = QColor(int(color[0]), int(color[1]), int(color[2]), color[3])
         scatter_point.setBrush(brush)
 
         scatter_point_scene.addItem(scatter_point)
@@ -55,7 +57,7 @@ class Legend(QHBoxLayout):
         uncertain_layout.setContentsMargins(0, 0, 0, 0)
 
         uncertain_rect_view = QGraphicsView()
-        uncertain_rect_view.setFixedWidth(rect_size*1.25)
+        uncertain_rect_view.setFixedWidth(int(rect_size*1.25))
         uncertain_layout.addWidget(uncertain_rect_view)
 
         uncertain_rect_scene = QGraphicsScene()
@@ -83,3 +85,69 @@ class Legend(QHBoxLayout):
         font.setPixelSize(14)
         text_item.setFont(font)
         text_scene.addItem(text_item)
+
+    def draw_toggle_button(self):
+        radio_widget = QWidget()
+        group = QButtonGroup()
+        
+        self.area_button = QRadioButton('Equal area')
+        self.equi_button = QRadioButton('Equidistant')
+        self.equi_button.setChecked(True)
+
+        group.addButton(self.equi_button)
+        group.addButton(self.area_button)
+
+        self.radioButtonState = {
+            'Equal area': False,
+            'Equidistant': True,
+        }
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.equi_button)
+        layout.addWidget(self.area_button)
+        
+        radio_widget.setLayout(layout)
+        radio_widget.group = group
+        group.buttonClicked.connect(self.check_radio_button)
+
+        self.addWidget(radio_widget)
+    
+    def check_radio_button(self, radio_button):
+        buttonName = radio_button.text()
+
+        # button is on so turn it off and turn the other one on
+        checkedStr = ''
+        if self.radioButtonState[buttonName]:
+            if buttonName == 'Equal area':
+                self.area_button.setChecked(False)
+                self.equi_button.setChecked(True)
+
+                self.radioButtonState['Equal area'] = False
+                self.radioButtonState['Equidistant'] = True
+                checkedStr = 'Equidistant'
+            else:
+                self.area_button.setChecked(True)
+                self.equi_button.setChecked(False)
+
+                self.radioButtonState['Equal area'] = True
+                self.radioButtonState['Equidistant'] = False
+                checkedStr = 'Equal area'
+        # button is off so turn it on and turn the other one off
+        else:
+            if buttonName == 'Equal area':
+                self.area_button.setChecked(True)
+                self.equi_button.setChecked(False)
+
+                self.radioButtonState['Equal area'] = True
+                self.radioButtonState['Equidistant'] = False
+                checkedStr = 'Equal area'
+            else:
+                self.area_button.setChecked(False)
+                self.equi_button.setChecked(True)
+
+                self.radioButtonState['Equal area'] = False
+                self.radioButtonState['Equidistant'] = True
+                checkedStr = 'Equidistant'
+
+        for heatmap_layout in self.all_heatmaps:
+            heatmap_layout.reset_heatmap(checkedStr)

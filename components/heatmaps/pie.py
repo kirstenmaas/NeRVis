@@ -36,12 +36,12 @@ class Pie(QGraphicsEllipseItem):
         self.start_angle = start_angle
         self.span_angle = span_angle
 
-        self.setStartAngle(start_angle)
+        self.setStartAngle(int(start_angle))
         self.setSpanAngle(span_angle)
 
     def set_color(self, color, opacity=255):
         self.color = color
-        brush = QColor(color[0], color[1], color[2], opacity)
+        brush = QColor(int(color[0]), int(color[1]), int(color[2]), opacity)
         self.setBrush(brush)
 
     def set_child_color(self, color):
@@ -106,8 +106,12 @@ class Pie(QGraphicsEllipseItem):
     def set_parent_pie(self, pie):
         self.parent_pie = pie
 
-    def set_border_pie(self, pie):
-        self.border_pie = pie
+    def create_border_pie(self):
+        border_pie = Pie(0, self.diameter, self.is_top)
+        border_pie.set_as_pie(self.start_angle, self.span_angle)
+        border_pie.set_parent_pie(self)
+        self.border_pie = border_pie
+        return border_pie
 
     def set_children(self, pies):
         self.children = pies

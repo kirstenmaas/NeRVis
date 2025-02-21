@@ -57,10 +57,10 @@ class CustomTabWidget(QTabWidget):
         self.mean_color_heatmap_frame_top = CustomFrame(name='mean_color_heatmap_frame_top', style_sheet=frame_style_sheet, width=self.window_size, height=self.window_size)
         self.mean_color_heatmap_frame_bottom = CustomFrame(name='mean_color_heatmap_frame_bottom', style_sheet=frame_style_sheet, width=self.window_size, height=self.window_size)
 
-        self.mean_heatmap_colorbar = CustomFrame(name='mean_heatmap_colorbar', style_sheet=frame_style_sheet, width=self.window_size/4, height=self.window_size)
-        self.mean_color_heatmap_colorbar = CustomFrame(name='mean_color_heatmap_colorbar', style_sheet=frame_style_sheet, width=self.window_size/4, height=self.window_size)
+        self.mean_heatmap_colorbar = CustomFrame(name='mean_heatmap_colorbar', style_sheet=frame_style_sheet, width=int(self.window_size/4), height=self.window_size)
+        self.mean_color_heatmap_colorbar = CustomFrame(name='mean_color_heatmap_colorbar', style_sheet=frame_style_sheet, width=int(self.window_size/4), height=self.window_size)
 
-        self.heatmap_legend = CustomFrame(name='heatmap_legend', style_sheet=frame_style_sheet, width=self.window_size*2+self.window_size/4, height=self.window_size/8)
+        self.heatmap_legend = CustomFrame(name='heatmap_legend', style_sheet=frame_style_sheet, width=int(self.window_size*2+self.window_size/4), height=int(self.window_size/8))
 
         self.heatmap_layout.addWidget(self.mean_heatmap_frame_top, 0, 0)
         self.heatmap_layout.addWidget(self.mean_heatmap_frame_bottom, 0, 1)

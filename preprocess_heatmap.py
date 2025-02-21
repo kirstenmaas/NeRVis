@@ -37,24 +37,18 @@ def main(config_args):
     phi_range = np.arange(-180, 181, 15)
     means_color, standard_deviations_color, means_density, standard_deviations_density, heatmap_angles = compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_renderer, density_renderer, color_renderer, data.model_type)
 
-    # pdb.set_trace()
-
     fig, ax = plt.subplots(figsize=(20, 20))
     im = ax.imshow(means_color)
     cbar = ax.figure.colorbar(im, ax=ax)
 
     ax.set_xticks(np.arange(len(phi_range)), labels=phi_range)
-    ax.set_yticks(np.arange(len(theta_range)), labels=theta_range)
-    
+    ax.set_yticks(np.arange(len(theta_range)), labels=theta_range)  
 
     # Loop over data dimensions and create text annotations.
     for i in range(len(theta_range)):
         for j in range(len(phi_range)):
             text = ax.text(j, i, np.around(means_color[i, j], 2),
                         ha="center", va="center", color="w")
-    # fig.tight_layout()
-    # plt.colorbar()
-    plt.savefig('heatmap.png')
 
     np.savetxt(f'{data.data_path}/density_means.csv', means_density, delimiter=',')
     np.savetxt(f'{data.data_path}/density_standard_deviations.csv', standard_deviations_density, delimiter=',')

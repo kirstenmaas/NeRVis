@@ -59,7 +59,7 @@ def main(config_args):
 
         plane_widget_windows.append(color_uncertainty_window)
 
-    plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
+    # plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
 
     synthesis_view = SynthesisView(main_layout.synthesis_image_frame)
     synthesis_button = SynthesisButton('Render image', main_layout.synthesis_layout, camera, synthesis_view, data)
@@ -114,7 +114,7 @@ def main(config_args):
         other_heatmaps = [heatmap for heatmap in all_heatmaps if heatmap != curr_heatmap]
         curr_heatmap.set_other_heatmap_layouts(other_heatmaps)
 
-    heatmap_legend = Legend(main_layout.vis_tab_widget.heatmap_legend)
+    heatmap_legend = Legend(main_layout.vis_tab_widget.heatmap_legend, all_heatmaps)
 
     window.show()
 

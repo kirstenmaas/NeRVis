@@ -145,7 +145,7 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         actor = vtk.vtkActor()
     
         actor.SetMapper(self.mapper)
-        #actor.GetProperty().SetColor(colors.GetColor3d('green'))
+        actor.GetProperty().SetSpecular(0) # no specular lightning
 
         purple_color = np.array([212,185,218]) / 255
         actor.GetProperty().SetColor(purple_color[0], purple_color[1], purple_color[2])
@@ -190,6 +190,7 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
     def setup_density_volume(self):
         opacity_tf, color_tf = self.setup_density_tfs()
         volume_property = self.setup_volume_property(opacity_tf, color_tf)
+
         self.density_mapper = self.setup_mapper(self.density_reader)
         self.density_volume = self.setup_volume(volume_property, self.density_mapper)
 
@@ -237,7 +238,8 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         self.density_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
-        purple_color = np.array([33,113,181]) / 255
+        # purple_color = np.array([33,113,181]) / 255
+        purple_color = np.array([1, 1, 1])
         
         color_tf.AddRGBPoint(0.00, 0.0, 0.0, 0.0)
         color_tf.AddRGBPoint(1.00, purple_color[0], purple_color[1], purple_color[2])
@@ -251,6 +253,10 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         volume_property.SetColor(color_tf)
         volume_property.SetScalarOpacity(opacity_tf)
         volume_property.ShadeOn()
+        
+        # no specular lightning
+        volume_property.SetSpecular(0)
+
         volume_property.SetInterpolationTypeToLinear()
 
         return volume_property

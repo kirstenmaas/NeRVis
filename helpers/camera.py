@@ -20,7 +20,9 @@ class CustomCamera(vtk.vtkCamera):
         orientation['distance'] = self.GetDistance()
         orientation['clipping range'] = self.GetClippingRange()
         orientation['orientation'] = self.GetOrientation()
-        self.orientation = orientation
+
+        # print(self.orientation)
+        self.vtk_orientation = orientation
 
     def setup(self):
         self.Zoom(5.0)
@@ -29,8 +31,8 @@ class CustomCamera(vtk.vtkCamera):
     def update_angles(self, azimuth, elevation):
         # make sure we only update if new values arrive
         if self.azimuth != azimuth or self.elevation != elevation:
-            self.isosurface_window.set_camera_orientation(self.orientation)
-            self.uncertainty_window.set_camera_orientation(self.orientation)
+            self.isosurface_window.set_camera_orientation(self.vtk_orientation)
+            self.uncertainty_window.set_camera_orientation(self.vtk_orientation)
 
             self.set_angles(azimuth, elevation)
             self.isosurface_window.renderer.ResetCamera()

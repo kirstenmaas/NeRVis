@@ -18,12 +18,13 @@ class ScatterPoint(QGraphicsEllipseItem):
         self.setTransform(transform)
     
     def set_color(self, color=[0, 0, 255, 1]):
-        brush = QColor(color[0], color[1], color[2], color[3])
+        brush = QColor(int(color[0]), int(color[1]), int(color[2]), color[3])
         self.setBrush(brush)
 
-        # pen = QPen()
-        # pen.setWidth(2)
-        # self.setPen(pen)
+        pen = QPen()
+        pen.setWidth(2)
+        # pen.setColor(QColor(125, 125, 125, 255))
+        self.setPen(pen)
 
     def set_parent_pie(self, pie):
         self.parent_pie = pie

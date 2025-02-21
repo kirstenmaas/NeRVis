@@ -26,3 +26,6 @@ class CircularHeatmapLayout(QVBoxLayout):
 
     def set_other_heatmap_layouts(self, other_heatmap_layouts):
         self.heatmap_view.set_other_heatmap_layouts(other_heatmap_layouts)
+
+    def reset_heatmap(self, projection_type):
+        self.heatmap_view.reset_heatmap(projection_type)

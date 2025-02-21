@@ -22,7 +22,7 @@ class CircularHeatmapView(QGraphicsView):
 
         self.setMouseTracking(True)
 
-        self.heatmap_scene = CircularHeatmapScene(title, value_data, std_data, vmax, vmin_std, vmax_std, heatmap_angles, training_angles, outer_diameter=outer_diameter-5, is_top=is_top)
+        self.heatmap_scene = CircularHeatmapScene(title, value_data, std_data, vmax, vmin_std, vmax_std, heatmap_angles, training_angles, outer_diameter=outer_diameter-15, is_top=is_top)
         self.setScene(self.heatmap_scene)
 
         self.camera = camera
@@ -38,10 +38,12 @@ class CircularHeatmapView(QGraphicsView):
 
                 # reset pen for all pies
                 for pie in self.heatmap_scene.pies:
-                    pie.border_pie.set_pen()
+                    if pie.border_pie:
+                        pie.border_pie.set_pen()
                 
                 # set hover width for current pie
-                current_pie.border_pie.set_pen(self.hover_pen_width)
+                if current_pie.border_pie:
+                    current_pie.border_pie.set_pen(self.hover_pen_width)
 
                 # in other layouts for which the orientation is the same (is_top), do the same and find the correct pie
                 for other_layout in self.other_heatmap_layouts:
@@ -50,23 +52,21 @@ class CircularHeatmapView(QGraphicsView):
                     index_pie = None
                     for other_pie in other_scene.pies:
                         # reset the pen width
-                        other_pie.border_pie.set_pen()
+                        if other_pie.border_pie:
+                            other_pie.border_pie.set_pen()
 
                         # pie in the same position
                         if other_scene.is_top == self.heatmap_scene.is_top and other_pie.azimuth == current_pie.azimuth and other_pie.elevation == current_pie.elevation:
                             index_pie = other_pie
 
                     if index_pie:
-                        index_pie.border_pie.set_pen(self.hover_pen_width)
+                        if index_pie.border_pie:
+                            index_pie.border_pie.set_pen(self.hover_pen_width)
 
     def mousePressEvent(self, event):
         current_pie = self.getPieAtLoc(event)
 
         if current_pie:
-            # print(current_pie.azimuth, current_pie.elevation)
-            # print(current_pie.theta, current_pie.phi)
-            # print(current_pie.color_theta, current_pie.color_phi)
-            # print(current_pie.value)
 
             if current_pie.border_pie.pen_width == self.selected_pen_width:
                 current_pie.border_pie.set_pen()
@@ -126,3 +126,6 @@ class CircularHeatmapView(QGraphicsView):
 
     def set_other_heatmap_layouts(self, other_heatmap_layouts):
         self.other_heatmap_layouts = other_heatmap_layouts
+    
+    def reset_heatmap(self, projection_type):
+        self.heatmap_scene.reset_heatmap(projection_type)
