@@ -25,7 +25,7 @@ class CustomCamera(vtk.vtkCamera):
         self.vtk_orientation = orientation
 
     def setup(self):
-        self.Zoom(5.0)
+        self.Zoom(3.0)
         self.Dolly(0.2)
 
     def update_angles(self, azimuth, elevation):

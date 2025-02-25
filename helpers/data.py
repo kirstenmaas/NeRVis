@@ -58,6 +58,7 @@ class Data():
         density_scalars = self.opacity_reader.GetOutput().GetPointData().GetScalars()
         density_scalars_np = numpy_support.vtk_to_numpy(density_scalars)
         empty_ids = np.argwhere(density_scalars_np < 1e-10)
+
         uncertainty_color_scalars_np[empty_ids] = 0
 
         uncertainty_color_scalars = numpy_support.numpy_to_vtk(uncertainty_color_scalars, deep=True)
@@ -84,8 +85,8 @@ class Data():
         angles_file_name = f'{self.data_path}/heatmap_angles.csv'
         self.uncertainty_angles = np.genfromtxt(angles_file_name, dtype='str', delimiter=',')
         if self.model_type == 'nn':
-            means_file_name = f'{self.data_path}/uncertainty_means.csv'
-            stddev_file_name = f'{self.data_path}/uncertainty_standard_deviations.csv'
+            means_file_name = f'{self.data_path}/density_means.csv'
+            stddev_file_name = f'{self.data_path}/density_standard_deviations.csv'
 
             self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(means_file_name)
             self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(stddev_file_name)

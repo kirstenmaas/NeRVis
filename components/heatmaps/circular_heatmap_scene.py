@@ -275,7 +275,7 @@ class CircularHeatmapScene(QGraphicsScene):
 
         return parent_pie
 
-    def get_child_pies(self, std_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter, diviser=4):
+    def get_child_pies(self, std_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter, diviser=8):
         minimal_span_angle = parent_span_angle / diviser
         maximal_span_angle = parent_span_angle - minimal_span_angle
         std_to_span_angle = interp1d([self.vmin_std, self.vmax_std], [maximal_span_angle, minimal_span_angle])

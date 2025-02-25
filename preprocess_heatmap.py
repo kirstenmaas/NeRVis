@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from helpers.data import Data
 from helpers.preprocess import setup_isosurface, setup_uncertainty_volume, setup_renderer, get_orientation, compute_means_stddevs
 
+from volume_generator import volume_generator
+
 def main(config_args):
     data = Data(config_args, prepare_data=True)
 
@@ -63,22 +65,35 @@ def main(config_args):
     print('time', end - start)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config", type=str, required=True, help="Path to (.yml) config file."
-    )
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument(
+    #     "--config", type=str, required=True, help="Path to (.yml) config file."
+    # )
 
-    args = parser.parse_args()
-    config_file = args.config
+    # args = parser.parse_args()
+    # config_file = args.config
 
-    datasets = ['chair', 'mic', 'drums']
+    datasets = ['mic', 'drums', 'chair']
     model_types = ['nn', 'ensemble']
-    data_types = ['partial', 'full']
+    data_types = ['full', 'partial']
 
     # datasets = ['chair']
     # model_types = ['ensemble']
     # data_types = ['full']
     
+    vol_res = 128
+    for dataset in datasets:
+        for model_type in model_types:
+            for data_type in data_types:
+                config_file = f'datasets/{dataset}/{model_type}/{data_type}.yml'
+                print(f'config file... {config_file}')
+
+                with open(config_file, "r") as f:
+                    config_args = yaml.load(f, Loader=yaml.FullLoader)
+                
+                volume_generator(dataset, data_type, model_type, config_args['iterations'], vol_res)
+
+
     for dataset in datasets:
         for model_type in model_types:
             for data_type in data_types:
@@ -89,6 +104,3 @@ if __name__ == "__main__":
                     config_args = yaml.load(f, Loader=yaml.FullLoader)
 
                 main(config_args)
-    # with open(config_file, "r") as f:
-    #     config_args = yaml.load(f, Loader=yaml.FullLoader)
-    #     main(config_args)

@@ -76,6 +76,7 @@ class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
         camera.SetViewUp(orientation['view up'])
         camera.SetDistance(orientation['distance'])
         camera.SetClippingRange(orientation['clipping range'])
+        
         self.camera = camera
 
     def set_camera(self, camera):

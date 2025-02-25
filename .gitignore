@@ -1,6 +1,7 @@
 *.vtk
 *.csv
 *.ckpt
+*.png
 
 __pycache__/
 *.py[cod]
