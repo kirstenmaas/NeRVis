@@ -107,7 +107,7 @@ class Data():
             self.uncertainty_max = self.vmax_density if self.vmax_density != 'None' else np.max(self.uncertainty_means)
             self.uncertainty_stds_min = self.vmin_std_density if self.vmin_std_density != 'None' else np.min(self.uncertainty_stds)
             self.uncertainty_stds_max = self.vmax_std_density if self.vmax_std_density != 'None' else np.max(self.uncertainty_stds)
-            
+
             self.color_max = self.vmax_color if self.vmax_color != 'None' else np.max(self.color_means)
             self.color_stds_min = self.vmin_std_color if self.vmin_std_color != 'None' else np.min(self.color_stds)
             self.color_stds_max = self.vmax_std_color if self.vmax_std_color != 'None' else np.max(self.color_stds)

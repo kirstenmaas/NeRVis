@@ -27,17 +27,20 @@ class MainLayout(QHBoxLayout):
         self.renderers_frame = CustomFrame(name='renderers_frame', style_sheet=border_style)
         self.renderers_layout = CustomGridLayout(parent=self.renderers_frame, name='renderers_layout')
 
+        self.isosurface_frame = CustomFrame(name='isosurface_frame', style_sheet=frame_style, width=self.window_size, height=self.window_size)
+        self.isosurface_layout = CustomQVLayout(parent=self.isosurface_frame, name='isosurface_layout')
+        self.isosurface_layout.setContentsMargins(20, 0, 20, 0)
+
         self.synthesis_frame = CustomFrame(name='synthesis_frame', style_sheet=frame_style, width=self.window_size, height=self.window_size)
         self.synthesis_layout = CustomQVLayout(parent=self.synthesis_frame, name='synthesis_layout')
-        self.synthesis_layout.setContentsMargins(20, 0, 20, 0)
+        # self.synthesis_layout.setContentsMargins(20, 0, 20, 0)
 
-        vol_window_height = self.window_size-self.button_height
+        vol_window_height = self.window_size#-self.button_height
         
         self.synthesis_image_frame = CustomFrame(name='synthesis_image_frame', style_sheet=frame_style, width=vol_window_height, height=vol_window_height)
         self.synthesis_layout.addWidget(self.synthesis_image_frame)
 
-        self.isosurface_frame = CustomFrame(name='isosurface_frame', style_sheet=frame_style, width=self.window_size, height=self.window_size)
-        self.isosurface_layout = CustomQVLayout(parent=self.isosurface_frame, name='isosurface_layout')
+        
 
         self.isosurface_vol_frame = CustomFrame(name='isosurface_vol_frame', style_sheet=frame_style, width=vol_window_height, height=vol_window_height)
         self.isosurface_control_frame = CustomFrame(name='isosurface_control_frame', style_sheet=frame_style, width=vol_window_height, height=self.button_height)
@@ -54,7 +57,8 @@ class MainLayout(QHBoxLayout):
         self.uncertainty_color_vol_frame = CustomFrame(name='uncertainty_color_vol_frame', style_sheet=frame_style, width=vol_window_height, height=vol_window_height)
         self.uncertainty_color_layout.addWidget(self.uncertainty_color_vol_frame)
 
-        renderers_frames = [[self.synthesis_frame, self.uncertainty_density_frame], [self.isosurface_frame, self.uncertainty_color_frame]]
+        # renderers_frames = [[self.synthesis_frame, self.uncertainty_density_frame], [self.isosurface_frame, self.uncertainty_color_frame]]
+        renderers_frames = [[self.isosurface_frame, self.uncertainty_density_frame], [self.synthesis_frame, self.uncertainty_color_frame]]
         self.renderers_layout.addWidgets(renderers_frames)
     
     def vis_setup(self):

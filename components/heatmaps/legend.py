@@ -13,7 +13,7 @@ class Legend(QHBoxLayout):
         self.draw_stddev_box('High standard deviation', 0.4)
         self.draw_toggle_button()
 
-    def draw_training_point(self, color=[125, 125, 125, 255]):
+    def draw_training_point(self, color=[255,255,51, int(255)]):
         training_point_widget = QWidget()
         training_point_widget.setFixedWidth(150)
         # training_point_widget.setStyleSheet(" QWidget { border: 1px solid black }")
@@ -30,7 +30,7 @@ class Legend(QHBoxLayout):
         scatter_point_scene = QGraphicsScene()
         scatter_point_view.setScene(scatter_point_scene)
 
-        scatter_point = QGraphicsEllipseItem(0, 0, 10, 10)
+        scatter_point = QGraphicsEllipseItem(0, 0, 10, 10) 
         brush = QColor(int(color[0]), int(color[1]), int(color[2]), color[3])
         scatter_point.setBrush(brush)
 
@@ -90,7 +90,7 @@ class Legend(QHBoxLayout):
         radio_widget = QWidget()
         group = QButtonGroup()
         
-        self.area_button = QRadioButton('Equal area')
+        self.area_button = QRadioButton('Equal-area')
         self.equi_button = QRadioButton('Equidistant')
         self.equi_button.setChecked(True)
 
@@ -98,7 +98,7 @@ class Legend(QHBoxLayout):
         group.addButton(self.area_button)
 
         self.radioButtonState = {
-            'Equal area': False,
+            'Equal-area': False,
             'Equidistant': True,
         }
 
@@ -118,34 +118,34 @@ class Legend(QHBoxLayout):
         # button is on so turn it off and turn the other one on
         checkedStr = ''
         if self.radioButtonState[buttonName]:
-            if buttonName == 'Equal area':
+            if buttonName == 'Equal-area':
                 self.area_button.setChecked(False)
                 self.equi_button.setChecked(True)
 
-                self.radioButtonState['Equal area'] = False
+                self.radioButtonState['Equal-area'] = False
                 self.radioButtonState['Equidistant'] = True
                 checkedStr = 'Equidistant'
             else:
                 self.area_button.setChecked(True)
                 self.equi_button.setChecked(False)
 
-                self.radioButtonState['Equal area'] = True
+                self.radioButtonState['Equal-area'] = True
                 self.radioButtonState['Equidistant'] = False
-                checkedStr = 'Equal area'
+                checkedStr = 'Equal-area'
         # button is off so turn it on and turn the other one off
         else:
-            if buttonName == 'Equal area':
+            if buttonName == 'Equal-area':
                 self.area_button.setChecked(True)
                 self.equi_button.setChecked(False)
 
-                self.radioButtonState['Equal area'] = True
+                self.radioButtonState['Equal-area'] = True
                 self.radioButtonState['Equidistant'] = False
-                checkedStr = 'Equal area'
+                checkedStr = 'Equal-area'
             else:
                 self.area_button.setChecked(False)
                 self.equi_button.setChecked(True)
 
-                self.radioButtonState['Equal area'] = False
+                self.radioButtonState['Equal-area'] = False
                 self.radioButtonState['Equidistant'] = True
                 checkedStr = 'Equidistant'
 

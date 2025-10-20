@@ -160,7 +160,7 @@ class CircularHeatmapScene(QGraphicsScene):
         for phi in phi_range:
             for theta in theta_range:
                 # based on mapping
-                if self.projection_type == 'Equal area':
+                if self.projection_type == 'Equal-area':
                     coordinate_twod, coordinate_polar = self.sph_to_cart_area(theta, phi)
                 else:
                     coordinate_twod, coordinate_polar = self.sph_to_cart_equi(theta, phi)
@@ -283,8 +283,8 @@ class CircularHeatmapScene(QGraphicsScene):
         child_pies = []
 
         ring_size = (max_diameter - min_diameter) / 2
-        maximal_diameter = max_diameter - (ring_size / diviser) * 2
-        minimal_diameter = min_diameter + (ring_size - ring_size / diviser)*2 #- (ring_size - ring_size / diviser) # + ring_size / diviser
+        maximal_diameter = max_diameter #- ring_size / diviser
+        minimal_diameter = min_diameter + ring_size + ring_size / diviser
 
         # # keep the same span angle if the pie is a circle
         # # also adjust the sizing of the area accordingly
@@ -298,7 +298,11 @@ class CircularHeatmapScene(QGraphicsScene):
             std_span_angle = int(std_to_span_angle(std_point))
             std_start_angle = parent_start_angle + (parent_span_angle-std_span_angle)/2
 
-        std_diameter = int(maximal_diameter - (std_point - self.vmin_std) / (self.vmax_std - self.vmin_std) * (maximal_diameter - minimal_diameter))
+        norm_std_point = 1 - (std_point / 2) / (self.vmax_std / 2) # we assume std can be zero (fill the whole block)
+
+        std_diameter = norm_std_point * (maximal_diameter - minimal_diameter) + minimal_diameter
+
+        # std_diameter = int(maximal_diameter - (std_point - self.vmin_std) / (self.vmax_std - self.vmin_std) * (maximal_diameter - minimal_diameter))
 
         std_child_pie = Pie(0, std_diameter, is_top=self.is_top, is_parent_pie=False)
         std_child_pie.set_as_pie(std_start_angle, std_span_angle)
@@ -311,7 +315,7 @@ class CircularHeatmapScene(QGraphicsScene):
 
         # cover up the bottom ring part with a new pie
         if not parent_pie.is_circle:
-            bottom_ring_diameter = (max_diameter - std_diameter) + max_diameter - ring_size*2
+            bottom_ring_diameter = (maximal_diameter - std_diameter) + min_diameter #+ max_diameter - ring_size*2
             bottom_ring_pie = Pie(0, bottom_ring_diameter, is_top=self.is_top, is_parent_pie=False)
             bottom_ring_pie.set_as_pie(std_start_angle, std_span_angle)
             bottom_ring_pie.remove_pen()
@@ -353,7 +357,7 @@ class CircularHeatmapScene(QGraphicsScene):
             if not (self.angle_in_range(theta, theta_range) and self.angle_in_range(phi, phi_range)):
                 continue
 
-            if self.projection_type == 'Equal area':
+            if self.projection_type == 'Equal-area':
                 coordinate_twod, _ = self.sph_to_cart_area(theta, phi)
             else:
                 coordinate_twod, _ = self.sph_to_cart_equi(theta, phi)

@@ -80,23 +80,11 @@ if __name__ == "__main__":
     # datasets = ['chair']
     # model_types = ['ensemble']
     # data_types = ['full']
-    
-    vol_res = 128
-    for dataset in datasets:
-        for model_type in model_types:
-            for data_type in data_types:
-                config_file = f'datasets/{dataset}/{model_type}/{data_type}.yml'
-                print(f'config file... {config_file}')
-
-                with open(config_file, "r") as f:
-                    config_args = yaml.load(f, Loader=yaml.FullLoader)
-                
-                volume_generator(dataset, data_type, model_type, config_args['iterations'], vol_res)
-
 
     for dataset in datasets:
         for model_type in model_types:
             for data_type in data_types:
+                # start_time = time.time()
                 config_file = f'datasets/{dataset}/{model_type}/{data_type}.yml'
                 print(f'config file... {config_file}')
 
@@ -104,3 +92,5 @@ if __name__ == "__main__":
                     config_args = yaml.load(f, Loader=yaml.FullLoader)
 
                 main(config_args)
+                # end_time = time.time()
+                # print('total time ==', end_time - start_time)
