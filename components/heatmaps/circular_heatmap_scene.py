@@ -7,6 +7,8 @@ from matplotlib import cm
 from scipy.interpolate import interp1d
 import pdb
 import copy
+import pandas as pd
+import os
 
 from .pie import Pie
 from .scatter_point import ScatterPoint
@@ -14,15 +16,20 @@ from .scatter_point import ScatterPoint
 from helpers.vtk import range_lower_than_90
 
 class CircularHeatmapScene(QGraphicsScene):
-    def __init__(self, title, value_data, std_data, vmax, vmin_std, vmax_std, heatmap_angles, training_angles, outer_diameter=400, angle_size=15, is_top=True):
+    def __init__(self, title, value_data, std_data, max_data, 
+                 vmax, vmin_std, vmax_std, vmin_max, vmax_max,
+                 heatmap_angles, training_angles, outer_diameter=400, angle_size=15, is_top=True):
         super(CircularHeatmapScene, self).__init__()
 
         self.title = title
         self.value_data = value_data
         self.std_data = std_data
+        self.max_data = max_data
         self.vmax = vmax
         self.vmin_std = vmin_std
         self.vmax_std = vmax_std
+        self.vmin_max = vmin_max
+        self.vmax_max = vmax_max
         self.heatmap_angles = heatmap_angles
         self.training_angles = training_angles
 
@@ -33,16 +40,22 @@ class CircularHeatmapScene(QGraphicsScene):
         self.num_sectors = (self.num_rings - 1) * 4
         self.total_span = 16*360
 
-        self.projection_type = 'Equidistant' # Equidistant | Equal area
+        self.projection_type = 'Equidistant' # Equidistant | Equal-area
         self.pies = []
         self.scatters = []
         
         self.is_top = is_top
 
         self.set_theta_phi_ranges()
-
+        self.set_extreme_type()
         self.draw_pies()
         self.draw_training_points()
+
+    def set_extreme_type(self, type='Standard deviation'):
+        self.extreme_type = type  # 'std' or 'max'
+        self.extreme_data = self.std_data if type == 'Standard deviation' else self.max_data
+        self.vmin_extreme = self.vmin_std if type == 'Standard deviation' else self.vmin_max
+        self.vmax_extreme = self.vmax_std if type == 'Standard deviation' else self.vmax_max
 
     def sph_to_cart_equi(self, theta, phi):
         angle_to_radius = interp1d([np.min(np.abs(self.theta_range)), np.max(np.abs(self.theta_range))], 
@@ -126,7 +139,7 @@ class CircularHeatmapScene(QGraphicsScene):
             pdb.set_trace()
 
         data_point = self.value_data[theta_index, phi_index]
-        std_point = self.std_data[theta_index, phi_index]
+        extreme_point = self.extreme_data[theta_index, phi_index]
         
         if 'color' in self.title.lower():
             custom_range = [0.1, 0.9]
@@ -140,7 +153,7 @@ class CircularHeatmapScene(QGraphicsScene):
         rgba = np.array(custom_cmap(value_in_range))
         rgb = rgba[:3] * 255
 
-        return [rgb, data_point, std_point]
+        return [rgb, data_point, extreme_point]
 
     def draw_pies(self):
         num_rings = self.num_rings
@@ -206,7 +219,7 @@ class CircularHeatmapScene(QGraphicsScene):
                     color_phi = theta*np.sign(phi)
                     color_theta = 0
 
-                color, data_point, std_point = self.get_sector_color(color_theta, color_phi)
+                color, data_point, extreme_point = self.get_sector_color(color_theta, color_phi)
 
                 parent_pie.set_color_angles(color_theta, color_phi)
                 parent_pie.set_angles(theta, phi)
@@ -226,7 +239,7 @@ class CircularHeatmapScene(QGraphicsScene):
                     min_diameter = unique_radii[radius_id + 1] * 2
 
                 # if radius == unique_radii[0]:
-                child_pies = self.get_child_pies(std_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter)
+                child_pies = self.get_child_pies(extreme_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter)
                 parent_pie.set_children(child_pies)
 
                 for child_pie in child_pies:
@@ -240,6 +253,7 @@ class CircularHeatmapScene(QGraphicsScene):
         pies.append(parent_pie)
 
         self.pies = pies
+        self.store_drawn_pie_angles()
 
     def draw_middle_circle(self, unique_radii):
         radius = unique_radii[-1]
@@ -253,7 +267,7 @@ class CircularHeatmapScene(QGraphicsScene):
             theta, phi = [0, 180]
 
         parent_pie.set_color_angles(theta, phi)
-        color, data_point, std_point = self.get_sector_color(theta, phi)
+        color, data_point, extreme_point = self.get_sector_color(theta, phi)
 
         parent_pie.set_angles(theta, phi)
         parent_pie.set_color([255, 255, 255])
@@ -265,7 +279,7 @@ class CircularHeatmapScene(QGraphicsScene):
         parent_pie.set_as_pie(start_angle, self.total_span)
         self.addItem(parent_pie)
         
-        child_pies = self.get_child_pies(std_point, parent_pie, start_angle, self.total_span, 0, parent_pie.diameter)
+        child_pies = self.get_child_pies(extreme_point, parent_pie, start_angle, self.total_span, 0, parent_pie.diameter)
         parent_pie.set_children(child_pies)
         for child_pie in child_pies:
             self.addItem(child_pie)
@@ -275,10 +289,10 @@ class CircularHeatmapScene(QGraphicsScene):
 
         return parent_pie
 
-    def get_child_pies(self, std_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter, diviser=8):
+    def get_child_pies(self, extreme_point, parent_pie, parent_start_angle, parent_span_angle, min_diameter, max_diameter, diviser=8):
         minimal_span_angle = parent_span_angle / diviser
         maximal_span_angle = parent_span_angle - minimal_span_angle
-        std_to_span_angle = interp1d([self.vmin_std, self.vmax_std], [maximal_span_angle, minimal_span_angle])
+        extreme_to_span_angle = interp1d([self.vmin_extreme, self.vmax_extreme], [maximal_span_angle, minimal_span_angle])
 
         child_pies = []
 
@@ -289,35 +303,33 @@ class CircularHeatmapScene(QGraphicsScene):
         # # keep the same span angle if the pie is a circle
         # # also adjust the sizing of the area accordingly
         if parent_pie.is_circle:
-            std_span_angle = parent_span_angle
-            std_start_angle = parent_start_angle
+            extreme_span_angle = parent_span_angle
+            extreme_start_angle = parent_start_angle
 
             maximal_diameter = max_diameter - max_diameter / diviser
             minimal_diameter = max_diameter / diviser
         else:
-            std_span_angle = int(std_to_span_angle(std_point))
-            std_start_angle = parent_start_angle + (parent_span_angle-std_span_angle)/2
+            extreme_span_angle = int(extreme_to_span_angle(extreme_point))
+            extreme_start_angle = parent_start_angle + (parent_span_angle-extreme_span_angle)/2
 
-        norm_std_point = 1 - (std_point / 2) / (self.vmax_std / 2) # we assume std can be zero (fill the whole block)
+        norm_extreme_point = 1 - (extreme_point / 2) / (self.vmax_extreme / 2) # we assume std can be zero (fill the whole block)
 
-        std_diameter = norm_std_point * (maximal_diameter - minimal_diameter) + minimal_diameter
+        extreme_diameter = norm_extreme_point * (maximal_diameter - minimal_diameter) + minimal_diameter
 
-        # std_diameter = int(maximal_diameter - (std_point - self.vmin_std) / (self.vmax_std - self.vmin_std) * (maximal_diameter - minimal_diameter))
+        extreme_child_pie = Pie(0, extreme_diameter, is_top=self.is_top, is_parent_pie=False)
+        extreme_child_pie.set_as_pie(extreme_start_angle, extreme_span_angle)
+        extreme_child_pie.remove_pen()
+        extreme_child_pie.set_parent_pie(parent_pie)
+        extreme_child_pie.is_extreme = True
 
-        std_child_pie = Pie(0, std_diameter, is_top=self.is_top, is_parent_pie=False)
-        std_child_pie.set_as_pie(std_start_angle, std_span_angle)
-        std_child_pie.remove_pen()
-        std_child_pie.set_parent_pie(parent_pie)
-        std_child_pie.is_std = True
-
-        std_child_pie.set_color(parent_pie.child_color, opacity=int(1*255))
-        child_pies.append(std_child_pie)
+        extreme_child_pie.set_color(parent_pie.child_color, opacity=int(1*255))
+        child_pies.append(extreme_child_pie)
 
         # cover up the bottom ring part with a new pie
         if not parent_pie.is_circle:
-            bottom_ring_diameter = (maximal_diameter - std_diameter) + min_diameter #+ max_diameter - ring_size*2
+            bottom_ring_diameter = (maximal_diameter - extreme_diameter) + min_diameter #+ max_diameter - ring_size*2
             bottom_ring_pie = Pie(0, bottom_ring_diameter, is_top=self.is_top, is_parent_pie=False)
-            bottom_ring_pie.set_as_pie(std_start_angle, std_span_angle)
+            bottom_ring_pie.set_as_pie(extreme_start_angle, extreme_span_angle)
             bottom_ring_pie.remove_pen()
             bottom_ring_pie.set_color(parent_pie.color)
             bottom_ring_pie.set_parent_pie(parent_pie)
@@ -400,7 +412,7 @@ class CircularHeatmapScene(QGraphicsScene):
     def angle_in_range(self, angle, range):
         return angle <= range[-1] and angle >= range[0]
     
-    def reset_heatmap(self, projection_type):
+    def reset_heatmap(self, projection_type, extreme_type='Standard deviation'):
         self.projection_type = projection_type
 
         # remove the previous pies, scatters, etc.
@@ -414,7 +426,41 @@ class CircularHeatmapScene(QGraphicsScene):
         for scatter in self.scatters:
             self.removeItem(scatter)
         
+        self.set_extreme_type(extreme_type)
         self.draw_pies()
         self.draw_training_points()
 
+    def store_drawn_pie_angles(self):
+        if os.path.exists('drawn_heatmap_pies.csv'):
+            old_df = pd.read_csv('drawn_heatmap_pies.csv')
+            thetas = old_df['theta'].tolist()
+            phis = old_df['phi'].tolist()
+            azimuths = old_df['azimuth'].tolist()
+            elevations = old_df['elevation'].tolist()
+            counters = old_df['id'].tolist()
+            counter = len(counters)
+        else:
+            thetas = []
+            phis = []
+            azimuths = []
+            elevations = []
+            counters = []
+            counter = 0
+
+        # check if the first pie has already been stored, if so, skip storing at all
+        first_theta = self.pies[0].theta
+        first_phi = self.pies[0].phi
+        if first_theta in thetas and first_phi in phis:
+            return
+
+        for pie in self.pies:
+            thetas.append(pie.theta)
+            phis.append(pie.phi)
+            azimuths.append(pie.azimuth)
+            elevations.append(pie.elevation)
+            counters.append(counter)
+            counter += 1
+        
+        df = pd.DataFrame({ 'id': counters, 'theta': thetas, 'phi': phis, 'azimuth': azimuths, 'elevation': elevations })
+        df.to_csv('drawn_heatmap_pies.csv', index=False)
 

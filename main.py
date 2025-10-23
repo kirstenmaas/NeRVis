@@ -9,6 +9,7 @@ from components.transfervis.surface_radio_button import SurfaceRadioButton
 from components.heatmaps.circular_heatmap_layout import CircularHeatmapLayout
 from components.heatmaps.colorbar import Colorbar
 from components.heatmaps.legend import Legend
+from components.heatmaps.radio_buttons import RadioButtonLayout
 from components.transfervis.density_scatter_plot import DensityScatterPlot
 from components.custom_main_window import CustomMainWindow
 
@@ -39,19 +40,22 @@ def main(config_args):
     camera = CustomCamera()
     z_buffer = ZBuffer()
 
+    synthesis_view = SynthesisView(main_layout.synthesis_image_frame, data=data)
+    synthesis_button = SynthesisButton('Render image', main_layout.synthesis_layout, camera, synthesis_view, data)
+
     # renderers
-    isosurface_window = IsoSurfaceWindow(main_layout.isosurface_vol_frame, data.opacity_volume, data.isosurface_filter_value, z_buffer, camera)
+    isosurface_window = IsoSurfaceWindow(main_layout.isosurface_vol_frame, data.opacity_volume, data.isosurface_filter_value, z_buffer, camera, synthesis_view=synthesis_view)
     window.set_interactor(isosurface_window)
 
     uncertainty_window_name = 'Uncertainty' if data.model_type == 'nn' else 'Density Uncertainty'
-    uncertainty_window = UncertaintyVolWindow(main_layout.uncertainty_density_vol_frame, data.opacity_reader, data.uncertainty_reader, z_buffer, camera, name=uncertainty_window_name)
+    uncertainty_window = UncertaintyVolWindow(main_layout.uncertainty_density_vol_frame, data.opacity_reader, data.uncertainty_reader, z_buffer, camera, name=uncertainty_window_name, synthesis_view=synthesis_view)
     window.set_interactor(uncertainty_window)
 
     plane_widget_mappers = [isosurface_window.mapper, uncertainty_window.density_mapper, uncertainty_window.uncertainty_mapper]
     plane_widget_windows = [isosurface_window, uncertainty_window]
     if data.model_type == 'ensemble':
         color_uncertainty_window_name = 'Color Uncertainty'
-        color_uncertainty_window = UncertaintyVolWindow(main_layout.uncertainty_color_vol_frame, data.opacity_reader, data.uncertainty_reader_color, z_buffer, camera, name=color_uncertainty_window_name)
+        color_uncertainty_window = UncertaintyVolWindow(main_layout.uncertainty_color_vol_frame, data.opacity_reader, data.uncertainty_reader_color, z_buffer, camera, name=color_uncertainty_window_name, synthesis_view=synthesis_view)
         window.set_interactor(color_uncertainty_window)
 
         plane_widget_mappers.append(color_uncertainty_window.density_mapper)
@@ -61,9 +65,6 @@ def main(config_args):
 
     plane_widget = CustomPlaneWidget(plane_widget_mappers, plane_widget_windows, z_buffer)
 
-    synthesis_view = SynthesisView(main_layout.synthesis_image_frame)
-    synthesis_button = SynthesisButton('Render image', main_layout.synthesis_layout, camera, synthesis_view, data)
-    
     # transfer functions
     tf_x_label = 'Uncertainty value' if data.model_type == 'nn' else 'Density uncertainty value'
     tf_title = 'Uncertainty Transfer Function' if data.model_type == 'nn' else 'Density Uncertainty Transfer Function'
@@ -88,21 +89,51 @@ def main(config_args):
     # heatmaps
     all_heatmaps = []
     heatmap_title = 'Uncertainty - Upper Hemisphere' if data.model_type == 'nn' else 'Density Uncertainty - Upper Hemisphere'
-    mean_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_top, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, vmax=data.uncertainty_max, vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
+    mean_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_top, heatmap_title, 
+                                             value_data=data.uncertainty_means, std_data=data.uncertainty_stds, 
+                                             max_data=data.uncertainty_maxs,
+                                             vmax=data.uncertainty_max, 
+                                             vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max, 
+                                             vmin_max=data.uncertainty_max_min, vmax_max=data.uncertainty_max_max,
+                                             heatmap_angles=data.uncertainty_angles, training_angles=data.angles, 
+                                             camera=camera, view_synthesis_view=synthesis_view)
     
     colorbar_title = 'Uncertainty mean' if data.model_type == 'nn' else 'Density uncertainty mean'
     mean_colorbar = Colorbar(main_layout.vis_tab_widget.mean_heatmap_colorbar, vmin=0, vmax=data.uncertainty_max, color_str='purple', name=colorbar_title)
     window.set_mpl_plot(mean_colorbar)
 
     heatmap_title = 'Uncertainty - Lower Hemisphere' if data.model_type == 'nn' else 'Density uncertainty - Lower Hemisphere'
-    mean_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_bottom, heatmap_title, value_data=data.uncertainty_means, std_data=data.uncertainty_stds, vmax=data.uncertainty_max, vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)    
+    mean_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_heatmap_frame_bottom, heatmap_title, 
+                                                value_data=data.uncertainty_means, std_data=data.uncertainty_stds, 
+                                                max_data=data.uncertainty_maxs,
+                                                vmax=data.uncertainty_max, 
+                                                vmin_std=data.uncertainty_stds_min, vmax_std=data.uncertainty_stds_max,
+                                                vmin_max=data.uncertainty_max_min, vmax_max=data.uncertainty_max_max, 
+                                                heatmap_angles=data.uncertainty_angles, training_angles=data.angles, 
+                                                camera=camera, view_synthesis_view=synthesis_view, is_top=False)    
     
     all_heatmaps.append(mean_heatmap_top)
     all_heatmaps.append(mean_heatmap_bottom)
 
     if data.model_type == 'ensemble':
-        mean_color_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_top, 'Color Uncertainty - Upper Hemisphere', value_data=data.color_means, std_data=data.color_stds, vmax=data.color_max, vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera)
-        mean_color_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_bottom, 'Color Uncertainty - Lower Hemisphere', value_data=data.color_means, std_data=data.color_stds, vmax=data.color_max, vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, is_top=False)
+        mean_color_heatmap_top = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_top, 
+                                                       'Color Uncertainty - Upper Hemisphere', 
+                                                       value_data=data.color_means, std_data=data.color_stds, 
+                                                       max_data=data.color_maxs,
+                                                       vmax=data.color_max, 
+                                                       vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, 
+                                                       vmin_max=data.color_max_min, vmax_max=data.color_max_max,
+                                                       heatmap_angles=data.uncertainty_angles, training_angles=data.angles, camera=camera, 
+                                                       view_synthesis_view=synthesis_view)
+        mean_color_heatmap_bottom = CircularHeatmapLayout(main_layout.vis_tab_widget.mean_color_heatmap_frame_bottom, 
+                                                          'Color Uncertainty - Lower Hemisphere', 
+                                                          value_data=data.color_means, std_data=data.color_stds, 
+                                                          max_data=data.color_maxs,
+                                                          vmax=data.color_max, 
+                                                          vmin_std=data.color_stds_min, vmax_std=data.color_stds_max, 
+                                                          vmin_max=data.color_max_min, vmax_max=data.color_max_max,
+                                                          heatmap_angles=data.uncertainty_angles, training_angles=data.angles, 
+                                                          camera=camera, view_synthesis_view=synthesis_view, is_top=False)
 
         color_colorbar = Colorbar(main_layout.vis_tab_widget.mean_color_heatmap_colorbar, vmin=0, vmax=data.color_max, color_str='green', name='Color uncertainty mean')
         window.set_mpl_plot(color_colorbar)
@@ -115,6 +146,7 @@ def main(config_args):
         curr_heatmap.set_other_heatmap_layouts(other_heatmaps)
 
     heatmap_legend = Legend(main_layout.vis_tab_widget.heatmap_legend, all_heatmaps)
+    radio_button_layout = RadioButtonLayout(main_layout.vis_tab_widget.radio_button_frame, all_heatmaps)
 
     window.show()
 
@@ -122,7 +154,7 @@ def main(config_args):
     z_buffer.update_buffer()
 
     # render initial image
-    # synthesis_button.eval_nerf()
+    # synthesis_button.update_view_synthesis_view()
 
     app.exec()
 

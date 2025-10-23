@@ -61,6 +61,7 @@ class CustomTabWidget(QTabWidget):
         self.mean_color_heatmap_colorbar = CustomFrame(name='mean_color_heatmap_colorbar', style_sheet=frame_style_sheet, width=int(self.window_size/4), height=self.window_size)
 
         self.heatmap_legend = CustomFrame(name='heatmap_legend', style_sheet=frame_style_sheet, width=int(self.window_size*2+self.window_size/4), height=int(self.window_size/8))
+        self.radio_button_frame = CustomFrame(name='radio_button_frame', style_sheet=frame_style_sheet, width=int(self.window_size*2+self.window_size/4), height=int(self.window_size/8))
 
         self.heatmap_layout.addWidget(self.mean_heatmap_frame_top, 0, 0)
         self.heatmap_layout.addWidget(self.mean_heatmap_frame_bottom, 0, 1)
@@ -70,6 +71,7 @@ class CustomTabWidget(QTabWidget):
         self.heatmap_layout.addWidget(self.mean_color_heatmap_frame_bottom, 1, 1)
         self.heatmap_layout.addWidget(self.mean_color_heatmap_colorbar, 1, 2)
         self.heatmap_layout.addWidget(self.heatmap_legend, 2, 0, 1, -1)
+        self.heatmap_layout.addWidget(self.radio_button_frame, 3, 0, 1, -1)
     
     def setup_scalar_tf(self):
         self.tf_scalar_widget = QWidget()

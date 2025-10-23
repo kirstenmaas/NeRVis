@@ -18,7 +18,7 @@ class Pie(QGraphicsEllipseItem):
         self.set_transform()
         self.set_pen()
 
-        self.is_std = False
+        self.is_extreme = False
 
         self.theta = None
         self.phi = None

@@ -3,6 +3,7 @@ import vtk.util.numpy_support as numpy_support
 
 import pdb
 import numpy as np
+import pandas as pd
 
 class Data():
     def __init__(self, config_args, prepare_data=False):
@@ -87,35 +88,49 @@ class Data():
         if self.model_type == 'nn':
             means_file_name = f'{self.data_path}/density_means.csv'
             stddev_file_name = f'{self.data_path}/density_standard_deviations.csv'
+            max_file_name = f'{self.data_path}/density_maximums.csv'
 
             self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(means_file_name)
             self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(stddev_file_name)
+            self.uncertainty_maxs, self.uncertainty_maxs_min_max = self.load_stats(max_file_name)
             self.uncertainty_max = self.vmax_density if self.vmax_density != 'None' else np.max(self.uncertainty_means)
             self.uncertainty_stds_min = self.vmin_std_density if self.vmin_std_density != 'None' else np.min(self.uncertainty_stds)
             self.uncertainty_stds_max = self.vmax_std_density if self.vmax_std_density != 'None' else np.max(self.uncertainty_stds)
+            self.uncertainty_max_max = np.max(self.uncertainty_maxs)
+            self.uncertainty_max_min = np.min(self.uncertainty_maxs)
         elif self.model_type == 'ensemble':
             color_means_file_name = means_file_name = f'{self.data_path}/color_means.csv'
             color_stddev_file_name = f'{self.data_path}/color_standard_deviations.csv'
+            color_max_file_name = f'{self.data_path}/color_maximums.csv'
             density_means_file_name = means_file_name = f'{self.data_path}/density_means.csv'
             density_stddev_file_name = f'{self.data_path}/density_standard_deviations.csv'
+            density_max_file_name = f'{self.data_path}/density_maximums.csv'
 
             self.color_means, self.color_means_min_max = self.load_stats(color_means_file_name)
             self.color_stds, self.color_stds_min_max = self.load_stats(color_stddev_file_name)
+            self.color_maxs, self.color_maxs_min_max = self.load_stats(color_max_file_name)
             self.uncertainty_means, self.uncertainty_means_min_max = self.load_stats(density_means_file_name)
             self.uncertainty_stds, self.uncertainty_stds_min_max = self.load_stats(density_stddev_file_name)
+            self.uncertainty_maxs, self.uncertainty_maxs_min_max = self.load_stats(density_max_file_name)
 
             self.uncertainty_max = self.vmax_density if self.vmax_density != 'None' else np.max(self.uncertainty_means)
             self.uncertainty_stds_min = self.vmin_std_density if self.vmin_std_density != 'None' else np.min(self.uncertainty_stds)
             self.uncertainty_stds_max = self.vmax_std_density if self.vmax_std_density != 'None' else np.max(self.uncertainty_stds)
+            self.uncertainty_max_max = np.max(self.uncertainty_maxs)
+            self.uncertainty_max_min = np.min(self.uncertainty_maxs)
 
             self.color_max = self.vmax_color if self.vmax_color != 'None' else np.max(self.color_means)
             self.color_stds_min = self.vmin_std_color if self.vmin_std_color != 'None' else np.min(self.color_stds)
             self.color_stds_max = self.vmax_std_color if self.vmax_std_color != 'None' else np.max(self.color_stds)
+            self.color_max_max = np.max(self.color_maxs)
+            self.color_max_min = np.min(self.color_maxs)
             
             print('color max', self.color_max)
             print('color stds min-max', self.color_stds_min, self.color_stds_max)
+            print('maximum min-max', self.uncertainty_max_min, self.uncertainty_max_max)
         print('density max', self.uncertainty_max)
         print('uncertainty stds min-max', self.uncertainty_stds_min, self.uncertainty_stds_max)
+        print('maximum min-max', self.uncertainty_max_min, self.uncertainty_max_max)
 
     def load_stats(self, file_name):
         uncertainty_means = np.loadtxt(file_name, delimiter=",")
@@ -125,6 +140,9 @@ class Data():
     def load_angles(self):
         angles_file_name = f'{self.data_path}/angles_{self.dataset_config}__{self.data_name}.csv'
         self.angles = np.loadtxt(angles_file_name, delimiter=",")
+
+        drawn_angle_file_name = 'drawn_heatmap_pies.csv'
+        self.drawn_angles = pd.read_csv(drawn_angle_file_name)
 
     def get_histogram_data(self, reader, num_bins=20, filter=True):
         data, _ = self.vtk_reader_to_numpy(reader)

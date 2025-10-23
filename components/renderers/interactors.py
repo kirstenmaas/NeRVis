@@ -29,16 +29,18 @@ class CustomQVTKRenderWindowInteractor(QVTKRenderWindowInteractor):
         super().closeEvent(QCloseEvent)
 
 class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
-    def __init__(self, parent, title_txt):
+    def __init__(self, parent, title_txt, synthesis_view=None):
         super().__init__(parent)
         self.renderer = None
         self.z_buffer = None
+        self.synthesis_view = synthesis_view
 
         self.set_interactor_style()
         self.set_title(title_txt)
         
         self.AddObserver('StartInteractionEvent', self.disable_z_buffer)
         self.AddObserver('EndInteractionEvent', self.update_z_buffer)
+        self.AddObserver('InteractionEvent', self.on_interaction_event)
 
     def set_interactor_style(self):
         style = vtk.vtkInteractorStyleTrackballCamera()
@@ -104,10 +106,38 @@ class CustomVolumeQVTKRenderWindowInteractor(CustomQVTKRenderWindowInteractor):
         om1.EnabledOn()
         om1.InteractiveOn()
         self.axes_widget = om1
+    
+    def on_interaction_event(self, obj=None, event=None):
+        if not self.renderer:
+            return
+        
+        camera = self.renderer.GetActiveCamera()
+        azimuth, elevation = self.get_camera_angles_vtk(camera)
+
+        self.synthesis_view.show_image_by_angle(azimuth, elevation)
+
+    def get_camera_angles_vtk(self, camera):
+        # Get the camera position and focal point
+        view_matrix_vtk = camera.GetViewTransformMatrix()
+        view_matrix = np.array([[view_matrix_vtk.GetElement(i, j) for j in range(4)] for i in range(4)], dtype=np.float32)
+        forward = view_matrix[0:3, 2]   # <-- note the + sign
+        forward /= np.linalg.norm(forward)
+
+        x, y, z = forward
+        theta = -np.degrees(np.arctan2(x, z))
+        r = np.sqrt(x**2 + z**2)
+        phi = -np.degrees(np.arctan2(y, r))
+
+        # we model the hemisphere by flipping the angles
+        if theta > 85:
+            phi = 180 - phi
+            theta = -theta
+    
+        return theta, phi
 
 class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
-    def __init__(self, parent, volume, filter_value, z_buffer, camera):
-        super().__init__(parent, 'Isosurface')
+    def __init__(self, parent, volume, filter_value, z_buffer, camera, synthesis_view=None):
+        super().__init__(parent, 'Isosurface', synthesis_view)
 
         self.volume = volume
         self.filter_value = filter_value
@@ -148,7 +178,7 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         actor.SetMapper(self.mapper)
         actor.GetProperty().SetSpecular(0) # no specular lightning
 
-        purple_color = np.array([212,185,218]) / 255
+        purple_color = np.array([186,228,179]) / 255
         actor.GetProperty().SetColor(purple_color[0], purple_color[1], purple_color[2])
 
         actor.SetVisibility(True)
@@ -167,8 +197,8 @@ class IsoSurfaceWindow(CustomVolumeQVTKRenderWindowInteractor):
         return renderer
 
 class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
-    def __init__(self, parent, density_reader, uncertainty_reader, z_buffer, camera, name='Uncertainty'):
-        super().__init__(parent, name)
+    def __init__(self, parent, density_reader, uncertainty_reader, z_buffer, camera, name='Uncertainty', synthesis_view=None):
+        super().__init__(parent, name, synthesis_view)
 
         self.name = name
         self.density_reader = density_reader
@@ -214,7 +244,8 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
 
         opacity_tf = vtk.vtkPiecewiseFunction()
         opacity_tf.AddPoint(0, 0)
-        opacity_tf.AddPoint(0.25, 1)
+        opacity_tf.AddPoint(0.25, 0.99)
+        opacity_tf.AddPoint(1, 1)
         self.uncertainty_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
@@ -222,9 +253,9 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
             custom_cmap = cm.get_cmap('viridis', 100)
         else:
             custom_cmap = cm.get_cmap('inferno', 100)
-        color_tf.AddRGBPoint(0.00, 1.0, 1.0, 1.0)
-        max_val = np.array(custom_cmap(0.5))[:3]
-        color_tf.AddRGBPoint(1, max_val[0], max_val[1], max_val[2])
+        max_val = np.array(custom_cmap(0.25))[:3]
+        color_tf.AddRGBPoint(0.0, max_val[0], max_val[1], max_val[2])
+        color_tf.AddRGBPoint(1.0, max_val[0], max_val[1], max_val[2])
 
         self.uncertainty_color_tf = color_tf
 
@@ -239,11 +270,9 @@ class UncertaintyVolWindow(CustomVolumeQVTKRenderWindowInteractor):
         self.density_opacity_tf = opacity_tf
 
         color_tf = vtk.vtkColorTransferFunction()
-        # purple_color = np.array([33,113,181]) / 255
-        purple_color = np.array([1, 1, 1])
         
         color_tf.AddRGBPoint(0.00, 0.0, 0.0, 0.0)
-        color_tf.AddRGBPoint(1.00, purple_color[0], purple_color[1], purple_color[2])
+        color_tf.AddRGBPoint(1.00, 1.0, 1.0, 1.0)
         
         self.density_color_tf = color_tf
 

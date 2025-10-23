@@ -9,7 +9,7 @@ import time
 import matplotlib.pyplot as plt
 
 from helpers.data import Data
-from helpers.preprocess import setup_isosurface, setup_uncertainty_volume, setup_renderer, get_orientation, compute_means_stddevs
+from helpers.preprocess import *
 
 from volume_generator import volume_generator
 
@@ -37,7 +37,7 @@ def main(config_args):
 
     theta_range = np.arange(-180, 181, 15)
     phi_range = np.arange(-180, 181, 15)
-    means_color, standard_deviations_color, means_density, standard_deviations_density, heatmap_angles = compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_renderer, density_renderer, color_renderer, data.model_type)
+    means_color, standard_deviations_color, maximums_color, means_density, standard_deviations_density, maximums_density, heatmap_angles = compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_renderer, density_renderer, color_renderer, data.model_type, data)
 
     fig, ax = plt.subplots(figsize=(20, 20))
     im = ax.imshow(means_color)
@@ -54,32 +54,26 @@ def main(config_args):
 
     np.savetxt(f'{data.data_path}/density_means.csv', means_density, delimiter=',')
     np.savetxt(f'{data.data_path}/density_standard_deviations.csv', standard_deviations_density, delimiter=',')
+    np.savetxt(f'{data.data_path}/density_maximums.csv', maximums_density, delimiter=',')
 
     np.savetxt(f'{data.data_path}/heatmap_angles.csv', heatmap_angles, delimiter=',', fmt="%s")
 
     if data.model_type == 'ensemble':
         np.savetxt(f'{data.data_path}/color_means.csv', means_color, delimiter=',')
         np.savetxt(f'{data.data_path}/color_standard_deviations.csv', standard_deviations_color, delimiter=',')
+        np.savetxt(f'{data.data_path}/color_maximums.csv', maximums_color, delimiter=',')
     
     end = time.time()
     print('time', end - start)
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--config", type=str, required=True, help="Path to (.yml) config file."
-    # )
+    # datasets = ['chair', 'drums', 'mic']
+    # model_types = ['nn', 'ensemble']
+    # data_types = ['full', 'partial']
 
-    # args = parser.parse_args()
-    # config_file = args.config
-
-    datasets = ['mic', 'drums', 'chair']
-    model_types = ['nn', 'ensemble']
-    data_types = ['full', 'partial']
-
-    # datasets = ['chair']
-    # model_types = ['ensemble']
-    # data_types = ['full']
+    datasets = ['mic']
+    model_types = ['ensemble']
+    data_types = ['full']
 
     for dataset in datasets:
         for model_type in model_types:

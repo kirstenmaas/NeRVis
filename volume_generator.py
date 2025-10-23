@@ -131,7 +131,7 @@ def volume_generator(scene, dataset, model_type, iteration, xyzNumPoint=128):
             fine_model_secondary_list.append(model_fine_secondary)
 
     if os.path.exists(load_checkpoint):
-        checkpoint = torch.load(load_checkpoint)
+        checkpoint = torch.load(load_checkpoint, weights_only=True)
         model_fine.load_state_dict(checkpoint["model_fine_state_dict"])
         
         for i, fine_model_secondary in enumerate(fine_model_secondary_list):

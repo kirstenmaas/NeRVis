@@ -36,7 +36,7 @@ def get_render_image(vector_magnitude, rotation_matrix, focal_length, data, file
     with open(config_file_path, "r") as f:
         cfg_dict = yaml.load(f, Loader=yaml.FullLoader)
         cfg = CfgNode(cfg_dict)
-    checkpoint = torch.load(checkpoint_file_path)
+    checkpoint = torch.load(checkpoint_file_path, weights_only=True)
 
     # Device on which to run.
     device = "cpu"

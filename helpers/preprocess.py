@@ -2,8 +2,14 @@ import vtk
 import numpy as np
 import pdb
 import matplotlib.pyplot as plt
+import vtk.util.numpy_support as numpy_support
+
+import torch
 
 from helpers.vtk import range_lower_than_90
+from nerf import (
+    get_ray_bundle,
+)
 
 def setup_isosurface(data):
     contour = vtk.vtkContourFilter()
@@ -129,6 +135,19 @@ def get_image_filter(render_window):
 
     return pix_map
 
+def get_image_filter_custom(render_window):
+    w2i = vtk.vtkWindowToImageFilter()
+    w2i.SetInput(render_window)
+    w2i.Update()
+
+    image_data = w2i.GetOutput()
+    width, height, _ = image_data.GetDimensions()
+
+    scalars = numpy_support.vtk_to_numpy(image_data.GetPointData().GetScalars())
+    scalars = scalars.reshape(height, width, -1)
+    gray = scalars[..., 0]  # R channel, scalar value encoded as gray
+    return gray
+
 def thetaphi_to_azel(theta, phi):
     sin_el = np.sin(phi) * np.sin(theta)
     tan_az = np.cos(phi) * np.tan(theta)
@@ -145,12 +164,111 @@ def convert_angle_to_range(angle):
         angle = -(360 - angle)
     return angle
 
-def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_renderer, density_renderer, color_renderer, model_type):
+def compute_custom_maximums(camera, data, num_x, num_y, type='color', original_distance=3.0, step_size=0.01, dimension=128):
+    if type == 'color':
+        volume_array = data.uncertainty_volume_color.GetPointData().GetScalars()
+    else:
+        volume_array = data.uncertainty_volume.GetPointData().GetScalars()
+    volume_array = numpy_support.vtk_to_numpy(volume_array).reshape((dimension, dimension, dimension))
+
+    density_array = data.opacity_volume.GetPointData().GetScalars()
+    density_array = numpy_support.vtk_to_numpy(density_array).reshape((dimension, dimension, dimension))
+
+    mvt_matrix = camera.GetModelViewTransformMatrix()
+
+    rotation_matrix = np.eye(4)
+    for row in range(3):
+        for col in range(3):
+            rotation_matrix[row, col] = mvt_matrix.GetElement(row, col)
+
+    # Get the camera position and focal point
+    camera_pos = camera.GetPosition()
+    focal_point = camera.GetFocalPoint()
+
+    # Calculate the vector between camera and focal point
+    vector = np.array([camera_pos[i] - focal_point[i] for i in range(3)])
+    vector_magnitude = np.linalg.norm(vector)
+
+    focal_length = original_distance / camera.GetDistance() * (1200)
+
+    def rotate_by_phi_along_x(phi):
+        tform = np.eye(4).astype(np.float32)
+        tform[1, 1] = tform[2, 2] = np.cos(phi)
+        tform[1, 2] = -np.sin(phi)
+        tform[2, 1] = -tform[1, 2]
+        return tform
+
+    translationMatrix = np.eye(4).astype(np.float32)
+    translationMatrix[2, 3] = 4.0 if vector_magnitude >= 4.0 else vector_magnitude
+    rotationMatrix = np.linalg.inv(rotation_matrix)
+    tranformationMatrix = rotate_by_phi_along_x(-90 / 180.0 * np.pi) @ np.array([[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]) @ rotationMatrix @ translationMatrix
+
+    device = torch.device('cuda:0')
+
+    render_poses = torch.stack([torch.from_numpy(tranformationMatrix)], 0).to(device)
+    pose = render_poses.float()[0, :3, :4]
+    volume_array = torch.from_numpy(volume_array).float().to(device)
+    density_array = torch.from_numpy(density_array).float().to(device)
+
+    hwf = [num_x, num_y, focal_length]
+
+    ray_origins, ray_directions = get_ray_bundle(hwf[0], hwf[1], hwf[2], pose)
+    
+    ray_origins = ray_origins.reshape(num_y, num_x, 3)
+    ray_dirs = ray_directions.reshape(num_y, num_x, 3)
+    image_max = torch.zeros((num_y, num_x))
+
+
+    H,W = ray_origins.shape[:2]
+    Z,Y,X = volume_array.shape
+    xmin, xmax, ymin, ymax, zmin, zmax = data.uncertainty_volume.GetBounds()
+    def world_to_voxel(points):
+        # points in [-1,1] -> voxel indices [0,dim-1]
+        scaled = torch.zeros_like(points)
+        scaled[:,0] = (points[:,0]-xmin)/(xmax-xmin)*(X-1)
+        scaled[:,1] = (points[:,1]-ymin)/(ymax-ymin)*(Y-1)
+        scaled[:,2] = (points[:,2]-zmin)/(zmax-zmin)*(Z-1)
+        return scaled
+
+    # March rays
+    near = 2.0
+    far = 5.0
+    num_steps = int(np.ceil((far - near) / step_size))
+
+    t_vals = near + torch.arange(0, num_steps).float().to(device) * step_size  # [num_steps]
+    t_vals_exp = t_vals[None,None,:,None]  # (1,1,S,1)
+    ray_dirs_exp = ray_dirs[:,:,None,:]    # (H,W,1,3)
+    ray_origins_exp = ray_origins[:,:,None,:]  # (H,W,1,3)
+    points = ray_origins_exp + t_vals_exp * ray_dirs_exp  # (H,W,S,3)
+    points_flat = points.reshape(-1,3)
+    voxel_pos_flat = world_to_voxel(points_flat)
+    ix = torch.clip(voxel_pos_flat[:,0].int(), 0, X-1)
+    iy = torch.clip(voxel_pos_flat[:,1].int(), 0, Y-1)
+    iz = torch.clip(voxel_pos_flat[:,2].int(), 0, Z-1)
+
+    sigma_flat = density_array[iz, iy, ix].reshape(H, W, num_steps)
+    alpha = 1 - torch.exp(-sigma_flat * step_size)
+    T = torch.cumprod(1 - alpha + 1e-10, dim=-1)
+    T = torch.roll(T, shifts=1, dims=-1)
+    T[:,:,0] = 1.0
+    weights = alpha * T  # (H,W,S)
+    mask = weights > 1e-8
+    
+    sampled_vals = volume_array[iz, iy, ix].reshape(H,W,num_steps)
+    sampled_vals = torch.where(mask, sampled_vals, 0)
+    
+    image_max = torch.sum(sampled_vals, dim=-1)
+    image_max = image_max.cpu().numpy()
+    return np.max(image_max)
+
+def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_renderer, density_renderer, color_renderer, model_type, data):
     means_color = np.zeros((theta_range.shape[0], phi_range.shape[0]))
     standard_deviations_color = np.zeros((theta_range.shape[0], phi_range.shape[0]))
+    maximum_color = np.zeros((theta_range.shape[0], phi_range.shape[0]))
 
     means_density = np.zeros((theta_range.shape[0], phi_range.shape[0]))
     standard_deviations_density = np.zeros((theta_range.shape[0], phi_range.shape[0]))
+    maximum_density = np.zeros((theta_range.shape[0], phi_range.shape[0]))
 
     heatmap_angles = np.zeros((theta_range.shape[0], phi_range.shape[0])).astype('str')
 
@@ -175,9 +293,6 @@ def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_
             new_phi = range_lower_than_90(phi)
 
             azimuth, elevation = thetaphi_to_azel(np.deg2rad(new_theta), np.deg2rad(new_phi))
-
-            # if int(theta) == 0 and (int(phi) > 90 or int(phi) < -90):
-            #     pdb.set_trace()
 
             if int(theta) in bottom_range_thetas and int(phi) in bottom_range_phi:
                 elevation += 180
@@ -221,32 +336,15 @@ def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_
 
             iso_image_filter = np.rot90(iso_image_filter, k=1)
 
-            # plt.imsave(f'iso/{new_theta}-{new_phi}-{np.around(azimuth, 2)}-{np.around(elevation, 2)}.png', iso_image_filter)
-            # pdb.set_trace()
-
             density_image_filter = get_image_filter(density_renderer.GetRenderWindow())
             density_image_occupied = density_image_filter[occupied_pixel_ids]
-            # if model_type == 'ensemble':
-            #     # density_image_occupied = density_image_filter
-            #     density_image_occupied = density_image_filter[occupied_pixel_ids]
-            # else:
-            #     density_image_occupied = density_image_filter
 
             density_image_filter = np.rot90(density_image_filter, k=1)
 
-            # compute histogram
-            # plt.hist(density_image_filter.flatten()[np.argwhere(density_image_filter.flatten() > 0.05)], bins=30)
-            # plt.ylabel('Frequency')
-            # plt.xlabel('Data')
-            # plt.savefig(f'density/{new_theta}-{new_phi}-hist.png')
-            # plt.close()
-            # pdb.set_trace()
-
-            # plt.imsave(f'density/{new_theta}-{new_phi}.png', density_image_filter)
             means_density[i, j] = np.mean(density_image_occupied)
-
-            # density_image_occupied[density_image_occupied > 0] = 1
             standard_deviations_density[i, j] = np.std(density_image_occupied)
+
+            maximum_density[i, j] = compute_custom_maximums(camera, data, xmax_color, ymax_color, type='density')
 
             if model_type == 'ensemble':
                 color_image_filter = get_image_filter(color_renderer.GetRenderWindow())
@@ -257,8 +355,10 @@ def compute_means_stddevs(theta_range, phi_range, orig_orientation, camera, iso_
                 # color_image_occupied[color_image_occupied > 0] = 1
                 standard_deviations_color[i, j] = np.std(color_image_occupied)
 
+                maximum_color[i, j] = compute_custom_maximums(camera, data, xmax_color, ymax_color, type='color')
+
             heatmap_angles[i, j] = f'{int(new_theta)}-{int(new_phi)}'
 
-    return means_color, standard_deviations_color, means_density, standard_deviations_density, heatmap_angles
+    return means_color, standard_deviations_color, maximum_color, means_density, standard_deviations_density, maximum_density, heatmap_angles
     
             
