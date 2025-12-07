@@ -1,7 +1,6 @@
 # NeRVis: Neural Radiance Field Model-Uncertainty Visualization
 
-## [Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5353524](https://www.sciencedirect.com/science/article/pii/S0097849325003528)
-
+## [Paper](https://www.sciencedirect.com/science/article/pii/S0097849325003528)
 Commands to run the code:
 
 Activate the environment:
